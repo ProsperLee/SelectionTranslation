@@ -44,6 +44,11 @@ def _ensure_win_app_user_model_id() -> None:
 _ensure_win_dpi_awareness_v2()
 _ensure_win_app_user_model_id()
 
+# 须在导入 translators/exejs 等库之前：避免首次翻译时 node/cscript 黑框一闪
+from win_subprocess import suppress_console_windows
+
+suppress_console_windows()
+
 from PySide6.QtWidgets import QApplication
 
 from app import run_app
