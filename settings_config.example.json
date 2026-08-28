@@ -1,0 +1,15 @@
+{
+  "hotkey": "Ctrl+Alt+T",
+  "ocr_hotkey": "Ctrl+Alt+O",
+  "start_on_boot": false,
+  "selection_bubble": false,
+  "window_pinned": false,
+  "split_ratio": 0.5,
+  "translation_width": 320,
+  "translation_height": 320,
+  "ocr_width": 640,
+  "ocr_height": 320,
+  "engine": "自动选择",
+  "source_lang": "自动检测",
+  "target_lang": "英语"
+}
