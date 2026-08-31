@@ -20,7 +20,7 @@ Windows 桌面划词 / OCR 翻译工具，附带屏幕吸色。托盘常驻，�
 
 ### 方式一：安装包（推荐）
 
-运行 `release\SelectionTranslation-Setup-1.1.0.exe`（需先执行 [`packaging\build.ps1`](#打包成安装包windows) 生成）。默认安装到 `%LOCALAPPDATA%\SelectionTranslation`，无需管理员权限；升级安装会保留已有 `settings_config.json`。
+运行 `release\SelectionTranslation-Setup-1.1.1.exe`（需先执行 [`packaging\build.ps1`](#打包成安装包windows) 生成）。默认安装到 `%LOCALAPPDATA%\SelectionTranslation`，无需管理员权限；升级安装会保留已有 `settings_config.json`。
 
 ### 方式二：源码运行
 
@@ -162,7 +162,7 @@ winget install --id JRSoftware.InnoSetup -e
 | 路径 | 说明 |
 | --- | --- |
 | `release\app\SelectionTranslation\SelectionTranslation.exe` | 免安装可运行目录 |
-| `release\SelectionTranslation-Setup-1.1.0.exe` | 安装包（需 Inno Setup；版本见 `packaging/version.txt`） |
+| `release\SelectionTranslation-Setup-1.1.1.exe` | 安装包（需 Inno Setup；版本见 `packaging/version.txt`） |
 
 安装包特性：
 

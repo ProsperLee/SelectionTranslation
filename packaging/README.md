@@ -6,7 +6,7 @@
 .\packaging\build.ps1
 ```
 
-Version is read from `packaging/version.txt` (currently **1.1.0**) and passed to Inno Setup.
+Version is read from `packaging/version.txt` (currently **1.1.1**) and passed to Inno Setup.
 
 Progress prints continuously in the terminal (pip / PyInstaller / ISCC).
 
@@ -26,7 +26,7 @@ Progress prints continuously in the terminal (pip / PyInstaller / ISCC).
 | Path | Description |
 | --- | --- |
 | `release\app\SelectionTranslation\` | Portable folder (run `SelectionTranslation.exe`) |
-| `release\SelectionTranslation-Setup-1.1.0.exe` | Installer (needs Inno Setup 6) |
+| `release\SelectionTranslation-Setup-1.1.1.exe` | Installer (needs Inno Setup 6) |
 
 ## Installer behaviour
 
