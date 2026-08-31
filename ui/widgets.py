@@ -566,10 +566,29 @@ class ToastTip(QWidget):
         icon_label = QLabel()
         icon_label.setPixmap(load_pixmap(icon_name, ICON_SIZE, ICON_ACCENT))
         icon_label.setFixedSize(ICON_SIZE, ICON_SIZE)
+
         text_label = QLabel(text)
         disable_label_selection(text_label)
-        layout.addWidget(icon_label)
-        layout.addWidget(text_label)
+
+        max_text_w = 240
+        if parent is not None and parent.width() > 0:
+            max_text_w = max(160, parent.width() - ICON_SIZE - WIDGET_MARGIN_H * 6)
+
+        # 一行能放下就不换行；超宽才折行
+        fm = QFontMetrics(text_label.font())
+        one_line_w = fm.horizontalAdvance(text.replace("\n", " "))
+        needs_wrap = ("\n" in text) or (one_line_w > max_text_w)
+        text_label.setWordWrap(needs_wrap)
+        if needs_wrap:
+            text_label.setMaximumWidth(max_text_w)
+            self.card.setMaximumWidth(max_text_w + ICON_SIZE + WIDGET_MARGIN_H * 4)
+            layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+            layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignTop)
+            layout.addWidget(text_label, 1)
+        else:
+            layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+            layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
+            layout.addWidget(text_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._opacity = QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(self._opacity)

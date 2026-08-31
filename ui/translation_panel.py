@@ -36,13 +36,26 @@ from ui.translation_services import ENGINE_ITEMS, engine_api_code, normalize_eng
 from ui.icons import IconButton, PrimaryIconButton
 from ui.styles import RESULT_EDIT_QSS, SCROLLBAR_QSS, TEXT_EDIT_QSS
 from ui.text_utils import disable_label_selection, enable_readonly_textarea_selection, enable_textarea_selection
-from ui.widgets import LangComboBox, RoundedPanel, ServiceComboBox, SplitLineWidget
+from ui.widgets import LangComboBox, RoundedPanel, ServiceComboBox, SplitLineWidget, ToastTip
+from tts import shared_tts
 
 
 def _label(text: str) -> QLabel:
     label = QLabel(text)
     disable_label_selection(label)
     return label
+
+
+def _icon_btn_pair(*buttons: QWidget) -> QWidget:
+    """复制 / 朗读等相邻图标按钮，间距更紧。"""
+    wrap = QWidget()
+    wrap.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+    layout = QHBoxLayout(wrap)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(2)
+    for btn in buttons:
+        layout.addWidget(btn, 0, Qt.AlignmentFlag.AlignVCenter)
+    return wrap
 
 
 EMPTY_SELECTION_HINT = (
@@ -182,8 +195,15 @@ class TranslationPanel(QWidget):
         tool_layout.setContentsMargins(WIDGET_MARGIN_H, WIDGET_MARGIN_V, WIDGET_MARGIN_H, WIDGET_MARGIN_V)
         tool_layout.setSpacing(WIDGET_MARGIN_H)
         self.copy_input_btn = IconButton("copy.svg", variant="light")
+        self.speak_input_btn = IconButton("volume.svg", variant="light")
+        self.copy_input_btn.setToolTip("复制原文")
+        self.speak_input_btn.setToolTip("朗读原文")
         self.lang_tag = LanguageTag("检测中...")
-        tool_layout.addWidget(self.copy_input_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+        tool_layout.addWidget(
+            _icon_btn_pair(self.copy_input_btn, self.speak_input_btn),
+            0,
+            Qt.AlignmentFlag.AlignVCenter,
+        )
         tool_layout.addWidget(self.lang_tag, 0, Qt.AlignmentFlag.AlignVCenter)
         tool_layout.addStretch()
         self.translate_btn = PrimaryIconButton("translate.svg", "翻译")
@@ -222,11 +242,18 @@ class TranslationPanel(QWidget):
         self.service_label = _label("自动选择")
         self.service_label.setStyleSheet(f"color: #8f8f8f; font-size: {FONT_SIZE}px; background: transparent;")
         self.copy_result_btn = IconButton("copy.svg", variant="light")
+        self.speak_result_btn = IconButton("volume.svg", variant="light")
+        self.copy_result_btn.setToolTip("复制译文")
+        self.speak_result_btn.setToolTip("朗读译文")
         self.service_combo = ServiceComboBox()
         self.service_combo.addItems(ENGINE_ITEMS)
         self._set_combo_text(self.service_combo, ENGINE_ITEMS[0])
         result_header_layout.addWidget(self.service_label)
-        result_header_layout.addWidget(self.copy_result_btn)
+        result_header_layout.addWidget(
+            _icon_btn_pair(self.copy_result_btn, self.speak_result_btn),
+            0,
+            Qt.AlignmentFlag.AlignVCenter,
+        )
         result_header_layout.addStretch()
         result_header_layout.addWidget(
             self.service_combo, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
@@ -268,6 +295,9 @@ class TranslationPanel(QWidget):
         self.split_line.drag_finished.connect(self._on_split_drag_finished)
         self.copy_input_btn.clicked.connect(lambda: self._copy_text(self.textarea.toPlainText()))
         self.copy_result_btn.clicked.connect(self._copy_result)
+        self.speak_input_btn.clicked.connect(self._speak_input)
+        self.speak_result_btn.clicked.connect(self._speak_result)
+        shared_tts().failed.connect(self._on_tts_failed)
         self.translate_btn.clicked.connect(self._on_translate)
         self.swap_btn.clicked.connect(self._swap_languages)
         self.service_combo.currentTextChanged.connect(self._on_service_changed)
@@ -374,6 +404,22 @@ class TranslationPanel(QWidget):
         text = self._result_copy_text or extract_primary_translation(self._result_full_text)
         self._copy_text(text)
 
+    def _speak_input(self):
+        text = self.textarea.toPlainText().strip()
+        if text in _BUSY_INPUT_TEXTS:
+            text = ""
+        self._speak_text(text)
+
+    def _speak_result(self):
+        text = self._result_copy_text or extract_primary_translation(self._result_full_text)
+        self._speak_text(text)
+
+    def _speak_text(self, text: str):
+        shared_tts().speak(text)
+
+    def _on_tts_failed(self, message: str):
+        ToastTip(self, message or "读音失败", duration_ms=2800).show()
+
     def _on_translate(self):
         if not self._can_translate():
             return
@@ -448,6 +494,10 @@ class TranslationPanel(QWidget):
         """窗口关闭前停掉翻译线程，避免 QThread destroyed while still running。"""
         self._translate_generation += 1
         self._detect_timer.stop()
+        try:
+            shared_tts().stop()
+        except Exception:
+            pass
         task = self._translate_task
         self._translate_task = None
         if task is None:
