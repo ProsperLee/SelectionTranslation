@@ -543,7 +543,7 @@ class TranslationPanel(QWidget):
             task.deleteLater()
 
     def shutdown_tasks(self):
-        """窗口关闭前停掉翻译线程，避免 QThread destroyed while still running。"""
+        """窗口关闭时立即断开翻译任务，线程在后台结束后自行回收。"""
         self._translate_generation += 1
         self._detect_timer.stop()
         try:
@@ -567,8 +567,8 @@ class TranslationPanel(QWidget):
         except (TypeError, RuntimeError):
             pass
         task.requestInterruption()
-        if task.isRunning() and not task.wait(5000):
-            # 仍在跑：挂到 QApplication，结束后再回收，避免无引用被 GC 毁掉
+        if task.isRunning():
+            # 不阻塞关闭：挂到 QApplication，结束后再 deleteLater
             from PySide6.QtWidgets import QApplication
 
             app = QApplication.instance()
