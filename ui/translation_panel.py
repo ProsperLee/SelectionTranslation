@@ -37,6 +37,7 @@ from ui.icons import IconButton, PrimaryIconButton
 from ui.styles import RESULT_EDIT_QSS, SCROLLBAR_QSS, TEXT_EDIT_QSS
 from ui.text_utils import disable_label_selection, enable_readonly_textarea_selection, enable_textarea_selection
 from ui.widgets import LangComboBox, RoundedPanel, ServiceComboBox, SplitLineWidget, ToastTip
+from ui.window_pin import toggle_window_pin
 from tts import shared_tts
 
 
@@ -721,8 +722,7 @@ class TranslationPanel(QWidget):
         window = self.window()
         if not window or not hasattr(window, "set_stays_on_top"):
             return
-        self._pinned = not self._pinned
+        self._pinned = toggle_window_pin(window, self._pinned)
         self.pin_btn.set_active(self._pinned)
-        window.set_stays_on_top(self._pinned)
         if self._layout_save_callback is not None:
             self._layout_save_callback("window_pinned", self._pinned)

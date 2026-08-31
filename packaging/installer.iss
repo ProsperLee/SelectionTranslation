@@ -95,23 +95,24 @@ begin
   if FileExists(ConfigPath) then
     Exit;
 
-  SetArrayLength(Lines, 16);
+  SetArrayLength(Lines, 17);
   Lines[0] := '{';
   Lines[1] := '  "hotkey": "Ctrl+Alt+T",';
   Lines[2] := '  "ocr_hotkey": "Ctrl+Alt+O",';
   Lines[3] := '  "color_picker_hotkey": "Ctrl+Alt+I",';
-  Lines[4] := '  "start_on_boot": ' + BoolToJson(StartOnBoot) + ',';
-  Lines[5] := '  "selection_bubble": false,';
-  Lines[6] := '  "window_pinned": false,';
-  Lines[7] := '  "split_ratio": 0.5,';
-  Lines[8] := '  "translation_width": 320,';
-  Lines[9] := '  "translation_height": 320,';
-  Lines[10] := '  "ocr_width": 640,';
-  Lines[11] := '  "ocr_height": 320,';
-  Lines[12] := '  "engine": "自动选择",';
-  Lines[13] := '  "source_lang": "自动检测",';
-  Lines[14] := '  "target_lang": "英语"';
-  Lines[15] := '}';
+  Lines[4] := '  "sticky_note_hotkey": "Ctrl+Alt+N",';
+  Lines[5] := '  "start_on_boot": ' + BoolToJson(StartOnBoot) + ',';
+  Lines[6] := '  "selection_bubble": false,';
+  Lines[7] := '  "window_pinned": false,';
+  Lines[8] := '  "split_ratio": 0.5,';
+  Lines[9] := '  "translation_width": 320,';
+  Lines[10] := '  "translation_height": 320,';
+  Lines[11] := '  "ocr_width": 640,';
+  Lines[12] := '  "ocr_height": 320,';
+  Lines[13] := '  "engine": "自动选择",';
+  Lines[14] := '  "source_lang": "自动检测",';
+  Lines[15] := '  "target_lang": "英语"';
+  Lines[16] := '}';
   ForceDirectories(ExtractFilePath(ConfigPath));
   SaveStringsToUTF8File(ConfigPath, Lines, False);
 end;

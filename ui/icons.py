@@ -70,6 +70,14 @@ class IconButton(QPushButton):
             "pressed_bg": "rgba(0, 0, 0, 0.85)",
             "bg": "rgba(0, 0, 0, 0.55)",
         },
+        "on_light": {
+            "icon": "#555555",
+            "hover_icon": "#333333",
+            "pressed_icon": "#222222",
+            "hover_bg": "rgba(0, 0, 0, 0.08)",
+            "pressed_bg": "rgba(0, 0, 0, 0.14)",
+            "bg": "transparent",
+        },
     }
 
     def __init__(

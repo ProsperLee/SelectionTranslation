@@ -51,6 +51,13 @@ HEADER_BAR_HEIGHT = 30            # 翻译面板标题栏区域高度
 HEADER_HEIGHT = 36                # 设置页等 FramelessWindow 标题栏高度
 HEADER_DRAG_HEIGHT = HEADER_BAR_HEIGHT  # 翻译窗口可拖拽区域高度
 
+# ── 便签 ───────────────────────────────────────────────
+DEFAULT_NOTE_WIDTH = 200
+DEFAULT_NOTE_HEIGHT = 300
+MIN_NOTE_WIDTH = 160
+MIN_NOTE_HEIGHT = 120
+NOTE_HEADER_HEIGHT = 32
+
 # ── 翻译面板内部 ───────────────────────────────────────
 RESULT_HEADER_HEIGHT = 30         # 结果区顶栏高度
 SPLIT_LINE_BLOCK_HEIGHT = WIDGET_MARGIN_V * 2 + 2  # 分割线：上下各 WIDGET_MARGIN_V + 线宽 2

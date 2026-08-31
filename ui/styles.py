@@ -117,6 +117,66 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
 }}
 """
 
+# 浅色便签：半透明深色细滚动条（逻辑同 SCROLLBAR_QSS，色值适配浅底）
+NOTE_SCROLLBAR_QSS = f"""
+QScrollBar:vertical {{
+    width: 6px;
+    background: transparent;
+    margin: {WIDGET_MARGIN_V}px 0;
+}}
+QScrollBar::handle:vertical {{
+    background: rgba(0, 0, 0, 55);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    min-height: 24px;
+    margin: 0 1px;
+}}
+QScrollBar::handle:vertical:hover {{
+    background: rgba(0, 0, 0, 90);
+}}
+QScrollBar::handle:vertical:pressed {{
+    background: #088fff;
+}}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+    height: 0;
+    background: none;
+}}
+QScrollBar:horizontal {{
+    height: 6px;
+    background: transparent;
+    margin: 0 {WIDGET_MARGIN_H}px;
+}}
+QScrollBar::handle:horizontal {{
+    background: rgba(0, 0, 0, 55);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    min-width: 24px;
+    margin: 1px 0;
+}}
+QScrollBar::handle:horizontal:hover {{
+    background: rgba(0, 0, 0, 90);
+}}
+QScrollBar::handle:horizontal:pressed {{
+    background: #088fff;
+}}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+    width: 0;
+    background: none;
+}}
+"""
+
+NOTE_TEXT_EDIT_QSS = f"""
+QPlainTextEdit {{
+    background: transparent;
+    border: none;
+    color: #333333;
+    font-size: {FONT_SIZE}px;
+    padding: {WIDGET_MARGIN_H}px;
+}}
+"""
+
 COMBO_QSS = f"""
 QComboBox {{
     background: transparent;

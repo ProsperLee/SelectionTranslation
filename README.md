@@ -1,20 +1,21 @@
 # SelectionTranslation
 
-Windows 桌面划词 / OCR 翻译工具，附带屏幕吸色。托盘常驻，国内免密钥翻译引擎。
+Windows 桌面划词 / OCR 翻译工具，附带屏幕吸色与便签。托盘常驻，国内免密钥翻译引擎。
 
 ## 功能
 
-| 功能 | 划词翻译 | OCR | 吸色 |
-| --- | :---: | :---: | :---: |
-| 全局热键 | ✅ | ✅ | ✅ |
-| 划词浮动按钮 | ✅ | — | — |
-| 多引擎翻译 / 语言切换 | ✅ | ✅ | — |
-| 词典释义 | ✅ | ✅ | — |
-| 复制 / 朗读 | ✅ | ✅ | — |
-| 窗口置顶与布局记忆 | ✅ | ✅ | — |
-| 框选截图预览 / 保存 | — | ✅ | — |
-| 跨屏取色 / HEX·RGBA | — | — | ✅ |
-| 开机自启 | ✅ | ✅ | ✅ |
+| 功能 | 划词翻译 | OCR | 吸色 | 便签 |
+| --- | :---: | :---: | :---: | :---: |
+| 全局热键 | ✅ | ✅ | ✅ | ✅ |
+| 划词浮动按钮 | ✅ | — | — | — |
+| 多引擎翻译 / 语言切换 | ✅ | ✅ | — | — |
+| 词典释义 | ✅ | ✅ | — | — |
+| 复制 / 朗读 | ✅ | ✅ | — | — |
+| 窗口置顶与布局记忆 | ✅ | ✅ | — | — |
+| 框选截图预览 / 保存 | — | ✅ | — | — |
+| 跨屏取色 / HEX·RGBA | — | — | ✅ | — |
+| 多窗便签 / 换色 / 缩放 | — | — | — | ✅ |
+| 开机自启 | ✅ | ✅ | ✅ | ✅ |
 
 ## 安装
 
@@ -63,6 +64,7 @@ python main.py
 | 划词翻译 | `Ctrl+Alt+T` |
 | OCR 翻译 | `Ctrl+Alt+O` |
 | 屏幕吸色 | `Ctrl+Alt+I` |
+| 新建便签 | `Ctrl+Alt+N` |
 
 全局热键基于 Win32 `RegisterHotKey`，并在解锁会话、系统唤醒后自动重新注册；另设有定时 watchdog 兜底。
 
@@ -87,6 +89,13 @@ python main.py
 3. **Shift**：在 HEX 与 `rgba(r, g, b, a)` 之间切换
 4. **Esc** 或 **右键抬起**：取消，不复制
 
+### 便签
+
+1. 按便签快捷键（默认 `Ctrl+Alt+N`）新建便签
+2. 标题栏可拖动；右下角可缩放
+3. **置顶** / **新增** / **换色** / **关闭** 仅作用于当前便签
+4. 换色为随机浅色，标题栏与正文区颜色近似但不相同
+
 ### 朗读
 
 翻译面板原文 / 译文旁有音量图标：优先使用有道 dictvoice 在线读音，网络不可用时回退到 Windows 系统语音（SAPI）。
@@ -98,7 +107,7 @@ python main.py
 
 | 字段 | 说明 |
 | --- | --- |
-| `hotkey` / `ocr_hotkey` / `color_picker_hotkey` | 划词 / OCR / 吸色全局热键 |
+| `hotkey` / `ocr_hotkey` / `color_picker_hotkey` / `sticky_note_hotkey` | 划词 / OCR / 吸色 / 便签全局热键 |
 | `selection_bubble` | 选中文字后显示翻译浮动按钮 |
 | `start_on_boot` | 开机自启（当前用户注册表 Run 键） |
 | `engine` / `source_lang` / `target_lang` | 默认翻译选项（翻译窗口内修改会自动保存） |
@@ -129,6 +138,9 @@ SelectionTranslation/
 ├── packaging/                    # 打包脚本（PyInstaller + Inno Setup）
 ├── icons/                        # SVG 图标
 └── ui/                           # 界面
+    ├── sticky_note_window.py     # 桌面便签
+    ├── window_pin.py             # 窗口置顶公共逻辑
+    ├── note_colors.py            # 便签浅色配色
     ├── translation_workspace.py  # 划词 / OCR 共用窗口
     ├── translation_panel.py      # 翻译面板（复制、朗读）
     ├── screenshot_panel.py       # OCR 截图区

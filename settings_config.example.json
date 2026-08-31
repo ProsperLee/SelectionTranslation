@@ -2,6 +2,7 @@
   "hotkey": "Ctrl+Alt+T",
   "ocr_hotkey": "Ctrl+Alt+O",
   "color_picker_hotkey": "Ctrl+Alt+I",
+  "sticky_note_hotkey": "Ctrl+Alt+N",
   "start_on_boot": false,
   "selection_bubble": false,
   "window_pinned": false,

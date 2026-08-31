@@ -38,6 +38,7 @@ from ui.log_window import LogWindow
 from ui.ocr_window import OCRWindow
 from ui.screen_coords import cursor_physical_pos, place_window_near_physical
 from ui.settings_window import SettingsWindow
+from ui.sticky_note_window import StickyNoteWindow
 from ui.translation_window import TranslationWindow
 
 logger = logging.getLogger("app")
@@ -70,6 +71,7 @@ class SelectionTranslationApp(QObject):
         self._ocr_window: OCRWindow | None = None
         self._settings_window: SettingsWindow | None = None
         self._log_window: LogWindow | None = None
+        self._sticky_notes: list[StickyNoteWindow] = []
         self._ocr_task: OcrTask | None = None
         self._selection_task: SelectionCaptureTask | None = None
         self._selection_token = 0
@@ -79,6 +81,7 @@ class SelectionTranslationApp(QObject):
         self._hotkeys.translation_triggered.connect(self.open_translation)
         self._hotkeys.ocr_triggered.connect(self.start_ocr_capture)
         self._hotkeys.color_picker_triggered.connect(self.start_color_picker)
+        self._hotkeys.sticky_note_triggered.connect(self.open_sticky_note)
         self._hotkeys.registration_failed.connect(self._on_hotkey_error)
 
         self._bubble_watcher = SelectionBubbleWatcher(
@@ -121,10 +124,11 @@ class SelectionTranslationApp(QObject):
         QTimer.singleShot(300, self._sync_selection_bubble)
         self._hotkeys.start()
         logger.info(
-            "应用已启动 | 划词=%s OCR=%s 吸色=%s 划词按钮=%s 开机自启=%s",
+            "应用已启动 | 划词=%s OCR=%s 吸色=%s 便签=%s 划词按钮=%s 开机自启=%s",
             self._config.get("hotkey"),
             self._config.get("ocr_hotkey"),
             self._config.get("color_picker_hotkey"),
+            self._config.get("sticky_note_hotkey"),
             bool(self._config.get("selection_bubble", False)),
             enabled,
         )
@@ -154,6 +158,7 @@ class SelectionTranslationApp(QObject):
             config["hotkey"],
             config["ocr_hotkey"],
             config.get("color_picker_hotkey", "Ctrl+Alt+I"),
+            config.get("sticky_note_hotkey", "Ctrl+Alt+N"),
         )
 
     def _sync_selection_bubble(self) -> None:
@@ -183,6 +188,7 @@ class SelectionTranslationApp(QObject):
                 config["hotkey"],
                 config["ocr_hotkey"],
                 config.get("color_picker_hotkey", "Ctrl+Alt+I"),
+                config.get("sticky_note_hotkey", "Ctrl+Alt+N"),
             )
             self._sync_selection_bubble()
             return
@@ -249,10 +255,11 @@ class SelectionTranslationApp(QObject):
         self._sync_selection_bubble()
         set_start_on_boot(bool(self._config.get("start_on_boot", False)))
         logger.info(
-            "设置已保存 | 划词=%s OCR=%s 吸色=%s 划词按钮=%s 开机自启=%s",
+            "设置已保存 | 划词=%s OCR=%s 吸色=%s 便签=%s 划词按钮=%s 开机自启=%s",
             self._config.get("hotkey"),
             self._config.get("ocr_hotkey"),
             self._config.get("color_picker_hotkey"),
+            self._config.get("sticky_note_hotkey"),
             bool(self._config.get("selection_bubble", False)),
             bool(self._config.get("start_on_boot", False)),
         )
@@ -476,6 +483,29 @@ class SelectionTranslationApp(QObject):
 
         ColorPicker.pick(_on_picked)
 
+    def open_sticky_note(self):
+        """便签快捷键 / 便签内「新增」：再开一个便签窗。"""
+        if ScreenshotSelector.is_active() or ColorPicker.is_active():
+            return
+        self._bubble_watcher.suppress_for(0.8)
+        logger.info("打开便签")
+
+        placement = cursor_physical_pos()
+        note = StickyNoteWindow(
+            placement_physical=placement,
+            placement_mode="cursor",
+        )
+        note.create_requested.connect(self.open_sticky_note)
+        note.destroyed.connect(lambda *_args, w=note: self._on_sticky_note_destroyed(w))
+        self._sticky_notes.append(note)
+        note.show()
+        note.raise_()
+        note.activateWindow()
+        note.textarea.setFocus()
+
+    def _on_sticky_note_destroyed(self, window) -> None:
+        self._sticky_notes = [n for n in self._sticky_notes if n is not window and _qt_alive(n)]
+
     def _on_screenshot_finished(self, pixmap, anchor=None):
         self._bubble_watcher.suppress_for(1.5)
         if pixmap is None or pixmap.isNull():
@@ -576,6 +606,10 @@ class SelectionTranslationApp(QObject):
         if self._ocr_task is not None and self._ocr_task.isRunning():
             self._ocr_task.requestInterruption()
             self._ocr_task.wait(2000)
+        for note in list(self._sticky_notes):
+            if _qt_alive(note):
+                note.close()
+        self._sticky_notes.clear()
         self._bubble_watcher.shutdown()
         self._hotkeys.stop()
         self._tray.hide()
