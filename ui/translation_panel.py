@@ -117,12 +117,15 @@ class TranslationPanel(QWidget):
         self._translate_task: TranslateTask | None = None
         self._translate_generation = 0
         self._auto_translate_guard = False
+        self._smart_target_guard = False
+        self._lang_manual = False
+        self._preferred_target_lang = "英语"
         self._result_copy_text = ""
         self._result_full_text = ""
         self._detect_timer = QTimer(self)
         self._detect_timer.setSingleShot(True)
         self._detect_timer.setInterval(_LANG_DETECT_DEBOUNCE_MS)
-        self._detect_timer.timeout.connect(self._update_detected_lang_tag)
+        self._detect_timer.timeout.connect(self._on_lang_detect_tick)
         if embedded:
             self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
             self.setStyleSheet("TranslationPanel { background-color: #212121; }")
@@ -320,6 +323,9 @@ class TranslationPanel(QWidget):
         target = str(config.get("target_lang", "英语"))
         engine_api = engine_api_code(engine)
 
+        self._preferred_target_lang = target or "英语"
+        self._lang_manual = False
+
         self.service_combo.blockSignals(True)
         try:
             self._set_combo_text(self.service_combo, engine)
@@ -335,6 +341,7 @@ class TranslationPanel(QWidget):
         )
         self._update_service_label(engine)
         self._update_detected_lang_tag()
+        self._apply_smart_target()
 
     def _update_service_label(self, service: str | None = None):
         name = service or self.service_combo.currentText()
@@ -346,21 +353,32 @@ class TranslationPanel(QWidget):
         self._update_service_label(engine)
         sync_language_combos(self.source_lang, self.target_lang, engine_api)
         self._update_detected_lang_tag()
+        self._apply_smart_target()
         if self._layout_save_callback is not None:
             self._layout_save_callback("engine", engine)
         self._maybe_auto_translate()
 
     def _on_source_lang_changed(self, text: str):
+        if not self._smart_target_guard and not self._auto_translate_guard:
+            self._lang_manual = True
         if self._layout_save_callback is not None and text:
             self._layout_save_callback("source_lang", text)
         self._update_detected_lang_tag()
-        if not self._auto_translate_guard:
+        if not self._auto_translate_guard and not self._smart_target_guard:
             self._maybe_auto_translate()
 
     def _on_target_lang_changed(self, text: str):
-        if self._layout_save_callback is not None and text:
+        if not self._smart_target_guard and not self._auto_translate_guard:
+            self._lang_manual = True
+            if text:
+                self._preferred_target_lang = text
+        if (
+            not self._smart_target_guard
+            and self._layout_save_callback is not None
+            and text
+        ):
             self._layout_save_callback("target_lang", text)
-        if not self._auto_translate_guard:
+        if not self._auto_translate_guard and not self._smart_target_guard:
             self._maybe_auto_translate()
 
     def eventFilter(self, obj, event):
@@ -375,6 +393,10 @@ class TranslationPanel(QWidget):
     def _schedule_lang_detect(self):
         self._detect_timer.start()
 
+    def _on_lang_detect_tick(self):
+        self._update_detected_lang_tag()
+        self._apply_smart_target()
+
     def _update_detected_lang_tag(self):
         if self.source_lang.currentText() == "自动检测":
             text = self.textarea.toPlainText()
@@ -385,6 +407,34 @@ class TranslationPanel(QWidget):
         else:
             label = self.source_lang.currentText()
             self.lang_tag.set_text(label or "检测中...")
+
+    def _apply_smart_target(self):
+        """中文→英语、英语→中文；手动改过语言或其他语种则用配置目标语言。"""
+        if self._lang_manual or self._smart_target_guard:
+            return
+        text = self.textarea.toPlainText().strip()
+        if not text or text in _BUSY_INPUT_TEXTS:
+            return
+        label = detect_language_label(text)
+        if label == "中文":
+            desired = "英语"
+        elif label == "英语":
+            desired = "中文"
+        elif label in ("检测中...", "--", ""):
+            return
+        else:
+            desired = self._preferred_target_lang or "英语"
+        if self.target_lang.currentText() == desired:
+            return
+        if self.target_lang.findText(desired) < 0:
+            return
+        self._smart_target_guard = True
+        try:
+            self.target_lang.blockSignals(True)
+            self.target_lang.setCurrentText(desired)
+            self.target_lang.blockSignals(False)
+        finally:
+            self._smart_target_guard = False
 
     def _can_translate(self) -> bool:
         source_text = self.textarea.toPlainText().strip()
@@ -423,6 +473,8 @@ class TranslationPanel(QWidget):
     def _on_translate(self):
         if not self._can_translate():
             return
+
+        self._apply_smart_target()
 
         source_text = self.textarea.toPlainText().strip()
         self._translate_generation += 1
@@ -550,6 +602,7 @@ class TranslationPanel(QWidget):
         self.textarea.setReadOnly(False)
         self.textarea.setPlainText(text)
         self._update_detected_lang_tag()
+        self._apply_smart_target()
 
     def set_result_text(self, text: str, *, is_error: bool = False):
         self._set_result_display(text, is_error=is_error)
@@ -576,10 +629,12 @@ class TranslationPanel(QWidget):
         target_text = self.target_lang.currentText()
         if source_text not in target_items or target_text not in source_items:
             return
+        self._lang_manual = True
         self._auto_translate_guard = True
         try:
             self.source_lang.setCurrentText(target_text)
             self.target_lang.setCurrentText(source_text)
+            self._preferred_target_lang = source_text
             self._update_detected_lang_tag()
         finally:
             self._auto_translate_guard = False
