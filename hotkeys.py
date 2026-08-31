@@ -12,7 +12,12 @@ from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import QWidget
 
-from config import DEFAULT_HOTKEY, DEFAULT_OCR_HOTKEY, normalize_hotkey
+from config import (
+    DEFAULT_COLOR_PICKER_HOTKEY,
+    DEFAULT_HOTKEY,
+    DEFAULT_OCR_HOTKEY,
+    normalize_hotkey,
+)
 
 logger = logging.getLogger("hotkeys")
 
@@ -32,6 +37,7 @@ MOD_NOREPEAT = 0x4000
 
 HOTKEY_ID_TRANSLATION = 1
 HOTKEY_ID_OCR = 2
+HOTKEY_ID_COLOR_PICKER = 3
 
 _user32 = ctypes.windll.user32 if sys.platform == "win32" else None
 _kernel32 = ctypes.windll.kernel32 if sys.platform == "win32" else None
@@ -179,17 +185,20 @@ class _HotkeySink(QWidget):
 class HotkeyManager(QObject):
     translation_triggered = Signal()
     ocr_triggered = Signal()
+    color_picker_triggered = Signal()
     registration_failed = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._translation_raw = normalize_hotkey(DEFAULT_HOTKEY)
         self._ocr_raw = normalize_hotkey(DEFAULT_OCR_HOTKEY)
+        self._color_picker_raw = normalize_hotkey(DEFAULT_COLOR_PICKER_HOTKEY)
         self._paused = False
         self._started = False
         self._registered: set[int] = set()
         self._last_translation_at = 0.0
         self._last_ocr_at = 0.0
+        self._last_color_picker_at = 0.0
         self._debounce_s = 0.4
         self._reregister_pending = False
 
@@ -212,9 +221,10 @@ class HotkeyManager(QObject):
         self._watchdog.setInterval(5 * 60 * 1000)
         self._watchdog.timeout.connect(self._watchdog_reregister)
 
-    def set_hotkeys(self, translation: str, ocr: str) -> None:
+    def set_hotkeys(self, translation: str, ocr: str, color_picker: str) -> None:
         self._translation_raw = normalize_hotkey(translation)
         self._ocr_raw = normalize_hotkey(ocr)
+        self._color_picker_raw = normalize_hotkey(color_picker)
         if self._started and not self._paused:
             self._register_all()
 
@@ -278,6 +288,7 @@ class HotkeyManager(QObject):
         pairs = [
             (HOTKEY_ID_TRANSLATION, self._translation_raw, "划词"),
             (HOTKEY_ID_OCR, self._ocr_raw, "OCR"),
+            (HOTKEY_ID_COLOR_PICKER, self._color_picker_raw, "吸色"),
         ]
         seen: set[tuple[int, int]] = set()
         for hotkey_id, raw, label in pairs:
@@ -301,9 +312,10 @@ class HotkeyManager(QObject):
                 self._registered.add(hotkey_id)
 
         logger.info(
-            "快捷键已注册 | 划词=%s OCR=%s ids=%s",
+            "快捷键已注册 | 划词=%s OCR=%s 吸色=%s ids=%s",
             self._translation_raw,
             self._ocr_raw,
+            self._color_picker_raw,
             sorted(self._registered),
         )
         if errors and not self._registered:
@@ -313,7 +325,11 @@ class HotkeyManager(QObject):
         if sys.platform != "win32" or _user32 is None:
             self._registered.clear()
             return
-        for hotkey_id in (HOTKEY_ID_TRANSLATION, HOTKEY_ID_OCR):
+        for hotkey_id in (
+            HOTKEY_ID_TRANSLATION,
+            HOTKEY_ID_OCR,
+            HOTKEY_ID_COLOR_PICKER,
+        ):
             try:
                 _user32.UnregisterHotKey(self._hwnd, hotkey_id)
             except Exception:
@@ -334,3 +350,8 @@ class HotkeyManager(QObject):
                 return
             self._last_ocr_at = now
             self.ocr_triggered.emit()
+        elif hotkey_id == HOTKEY_ID_COLOR_PICKER:
+            if now - self._last_color_picker_at < self._debounce_s:
+                return
+            self._last_color_picker_at = now
+            self.color_picker_triggered.emit()

@@ -35,7 +35,7 @@ class SettingsWindow(FramelessWindow):
     def __init__(self):
         super().__init__(show_header_border=True)
         self.setFixedWidth(DEFAULT_SETTINGS_WIDTH)
-        self.resize(DEFAULT_SETTINGS_WIDTH, 280)
+        self.resize(DEFAULT_SETTINGS_WIDTH, 320)
         self._config = load_config()
         self._build_content()
 
@@ -66,6 +66,9 @@ class SettingsWindow(FramelessWindow):
         )
         self.ocr_hotkey_edit.set_key_sequence(
             normalize_hotkey(self._config.get("ocr_hotkey", ""))
+        )
+        self.color_picker_hotkey_edit.set_key_sequence(
+            normalize_hotkey(self._config.get("color_picker_hotkey", ""))
         )
         self.startup_checkbox.setChecked(bool(self._config.get("start_on_boot", False)))
         self.selection_button_checkbox.setChecked(
@@ -104,6 +107,12 @@ class SettingsWindow(FramelessWindow):
         )
         self._add_row(main_layout, "OCR快捷键", self.ocr_hotkey_edit)
 
+        self.color_picker_hotkey_edit = HotkeyEdit(
+            normalize_hotkey(self._config.get("color_picker_hotkey", "Ctrl+Alt+I")),
+            on_focus_change=self._sync_hotkey_capture_lock,
+        )
+        self._add_row(main_layout, "吸色快捷键", self.color_picker_hotkey_edit)
+
         self.startup_checkbox = MarkCheckBox(checked=bool(self._config.get("start_on_boot", False)))
         self._add_row(main_layout, "开机自启", self.startup_checkbox)
         self.selection_button_checkbox = MarkCheckBox(
@@ -138,7 +147,11 @@ class SettingsWindow(FramelessWindow):
 
     def _hotkey_edit_contains(self, widget) -> bool:
         while widget is not None:
-            if widget in (self.hotkey_edit, self.ocr_hotkey_edit):
+            if widget in (
+                self.hotkey_edit,
+                self.ocr_hotkey_edit,
+                self.color_picker_hotkey_edit,
+            ):
                 return True
             if widget is self:
                 break
@@ -159,10 +172,16 @@ class SettingsWindow(FramelessWindow):
                     self.hotkey_edit.clearFocus()
                 if self.ocr_hotkey_edit.hasFocus():
                     self.ocr_hotkey_edit.clearFocus()
+                if self.color_picker_hotkey_edit.hasFocus():
+                    self.color_picker_hotkey_edit.clearFocus()
         return super().eventFilter(obj, event)
 
     def _sync_hotkey_capture_lock(self):
-        if self.hotkey_edit.hasFocus() or self.ocr_hotkey_edit.hasFocus():
+        if (
+            self.hotkey_edit.hasFocus()
+            or self.ocr_hotkey_edit.hasFocus()
+            or self.color_picker_hotkey_edit.hasFocus()
+        ):
             acquire_settings_lock()
         else:
             release_settings_lock()
@@ -174,20 +193,30 @@ class SettingsWindow(FramelessWindow):
         ocr_hotkey = normalize_hotkey(
             self.ocr_hotkey_edit.key_sequence().toString(QKeySequence.SequenceFormat.NativeText)
         )
+        color_picker_hotkey = normalize_hotkey(
+            self.color_picker_hotkey_edit.key_sequence().toString(
+                QKeySequence.SequenceFormat.NativeText
+            )
+        )
         if not hotkey:
             QMessageBox.warning(self, "快捷键无效", "请设置划词翻译快捷键。")
             return
         if not ocr_hotkey:
             QMessageBox.warning(self, "快捷键无效", "请设置 OCR 快捷键。")
             return
-        if hotkey.casefold() == ocr_hotkey.casefold():
-            QMessageBox.warning(self, "快捷键冲突", "两个快捷键不能相同。")
+        if not color_picker_hotkey:
+            QMessageBox.warning(self, "快捷键无效", "请设置吸色快捷键。")
+            return
+        keys = [hotkey.casefold(), ocr_hotkey.casefold(), color_picker_hotkey.casefold()]
+        if len(set(keys)) != len(keys):
+            QMessageBox.warning(self, "快捷键冲突", "三个快捷键不能相同。")
             return
 
         self._config = {
             **load_config(),
             "hotkey": hotkey,
             "ocr_hotkey": ocr_hotkey,
+            "color_picker_hotkey": color_picker_hotkey,
             "start_on_boot": self.startup_checkbox.isChecked(),
             "selection_bubble": self.selection_button_checkbox.isChecked(),
         }

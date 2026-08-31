@@ -66,3 +66,9 @@ TRAY_ICON_SIZE = 64               # 系统托盘图标（需大于界面图标�
 TRAY_FONT_SIZE = 10               # 系统托盘右键菜单字号
 SELECTION_BUBBLE_SIZE = 28        # 划词浮动按钮尺寸
 SELECTION_BUBBLE_ICON = 16        # 划词浮动按钮图标尺寸
+
+# ── 吸色 Popover ─────────────────────────────────────
+COLOR_PICKER_POPOVER_FONT_SIZE = 8
+COLOR_PICKER_MAG_COLS = 15       # 放大镜列数（宽）
+COLOR_PICKER_MAG_ROWS = 15       # 放大镜行数（高）
+COLOR_PICKER_MAG_CELL = 10         # 单格边长（像素）

@@ -17,6 +17,7 @@ from ui.constants import (
 
 DEFAULT_HOTKEY = "Ctrl+Alt+T"
 DEFAULT_OCR_HOTKEY = "Ctrl+Alt+O"
+DEFAULT_COLOR_PICKER_HOTKEY = "Ctrl+Alt+I"
 DEFAULT_SPLIT_RATIO = 0.5
 DEFAULT_ENGINE = "自动选择"
 DEFAULT_SOURCE_LANG = "自动检测"
@@ -25,6 +26,7 @@ DEFAULT_TARGET_LANG = "英语"
 DEFAULT_CONFIG = {
     "hotkey": DEFAULT_HOTKEY,
     "ocr_hotkey": DEFAULT_OCR_HOTKEY,
+    "color_picker_hotkey": DEFAULT_COLOR_PICKER_HOTKEY,
     "start_on_boot": False,
     "selection_bubble": False,
     "window_pinned": False,

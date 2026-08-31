@@ -23,6 +23,7 @@ from app_log import (
     setup_logging,
 )
 from boot import reconcile_start_on_boot, set_start_on_boot
+from color_picker import ColorPicker
 from config import CONFIG_FILE, load_config, settings_lock_active
 from hotkeys import HotkeyManager
 from ocr import HAS_OCR, OCR_IMPORT_ERROR
@@ -77,6 +78,7 @@ class SelectionTranslationApp(QObject):
         self._hotkeys = HotkeyManager(self)
         self._hotkeys.translation_triggered.connect(self.open_translation)
         self._hotkeys.ocr_triggered.connect(self.start_ocr_capture)
+        self._hotkeys.color_picker_triggered.connect(self.start_color_picker)
         self._hotkeys.registration_failed.connect(self._on_hotkey_error)
 
         self._bubble_watcher = SelectionBubbleWatcher(
@@ -119,9 +121,10 @@ class SelectionTranslationApp(QObject):
         QTimer.singleShot(300, self._sync_selection_bubble)
         self._hotkeys.start()
         logger.info(
-            "应用已启动 | 划词=%s OCR=%s 划词按钮=%s 开机自启=%s",
+            "应用已启动 | 划词=%s OCR=%s 吸色=%s 划词按钮=%s 开机自启=%s",
             self._config.get("hotkey"),
             self._config.get("ocr_hotkey"),
+            self._config.get("color_picker_hotkey"),
             bool(self._config.get("selection_bubble", False)),
             enabled,
         )
@@ -147,7 +150,11 @@ class SelectionTranslationApp(QObject):
     def _apply_hotkeys_from_config(self) -> None:
         config = load_config()
         self._config = config
-        self._hotkeys.set_hotkeys(config["hotkey"], config["ocr_hotkey"])
+        self._hotkeys.set_hotkeys(
+            config["hotkey"],
+            config["ocr_hotkey"],
+            config.get("color_picker_hotkey", "Ctrl+Alt+I"),
+        )
 
     def _sync_selection_bubble(self) -> None:
         enabled = bool(self._config.get("selection_bubble", False))
@@ -157,7 +164,7 @@ class SelectionTranslationApp(QObject):
         """设置页改快捷键 / OCR 截图期间不弹出划词按钮。"""
         if settings_lock_active():
             return True
-        if ScreenshotSelector.suppresses_bubble():
+        if ScreenshotSelector.suppresses_bubble() or ColorPicker.suppresses_bubble():
             return True
         return False
 
@@ -172,7 +179,11 @@ class SelectionTranslationApp(QObject):
             config = load_config()
             self._config = config
             self._hotkeys.set_paused(False)
-            self._hotkeys.set_hotkeys(config["hotkey"], config["ocr_hotkey"])
+            self._hotkeys.set_hotkeys(
+                config["hotkey"],
+                config["ocr_hotkey"],
+                config.get("color_picker_hotkey", "Ctrl+Alt+I"),
+            )
             self._sync_selection_bubble()
             return
 
@@ -238,9 +249,10 @@ class SelectionTranslationApp(QObject):
         self._sync_selection_bubble()
         set_start_on_boot(bool(self._config.get("start_on_boot", False)))
         logger.info(
-            "设置已保存 | 划词=%s OCR=%s 划词按钮=%s 开机自启=%s",
+            "设置已保存 | 划词=%s OCR=%s 吸色=%s 划词按钮=%s 开机自启=%s",
             self._config.get("hotkey"),
             self._config.get("ocr_hotkey"),
+            self._config.get("color_picker_hotkey"),
             bool(self._config.get("selection_bubble", False)),
             bool(self._config.get("start_on_boot", False)),
         )
@@ -313,7 +325,7 @@ class SelectionTranslationApp(QObject):
 
     def open_translation(self):
         """划词快捷键：复用翻译窗、不抢焦点抓选区，完成后再激活。"""
-        if ScreenshotSelector.is_active():
+        if ScreenshotSelector.is_active() or ColorPicker.is_active():
             return
         self._bubble_watcher.suppress_for(2.0)
         logger.info("划词快捷键触发")
@@ -353,7 +365,7 @@ class SelectionTranslationApp(QObject):
         placement_mode: str = "cursor",
     ):
         """划词浮动按钮：直接用已选中的文本打开翻译界面。"""
-        if ScreenshotSelector.is_active():
+        if ScreenshotSelector.is_active() or ColorPicker.is_active():
             return
         text = (text or "").strip()
         if not text:
@@ -434,7 +446,7 @@ class SelectionTranslationApp(QObject):
 
     def start_ocr_capture(self):
         """OCR 快捷键：框选屏幕区域后识别并翻译。"""
-        if ScreenshotSelector.is_active():
+        if ScreenshotSelector.is_active() or ColorPicker.is_active():
             return
         self._bubble_watcher.suppress_for(2.0)
         logger.info("OCR 快捷键触发")
@@ -448,6 +460,21 @@ class SelectionTranslationApp(QObject):
             )
             return
         ScreenshotSelector.capture(self._on_screenshot_finished)
+
+    def start_color_picker(self):
+        """吸色快捷键：全屏十字取色，Shift 切换 RGBA/HEX，C 复制并退出。"""
+        if ScreenshotSelector.is_active() or ColorPicker.is_active():
+            return
+        self._bubble_watcher.suppress_for(1.5)
+        logger.info("吸色快捷键触发")
+
+        def _on_picked(value: str | None):
+            if value:
+                logger.info("吸色完成 | %s", value)
+            else:
+                logger.info("吸色取消")
+
+        ColorPicker.pick(_on_picked)
 
     def _on_screenshot_finished(self, pixmap, anchor=None):
         self._bubble_watcher.suppress_for(1.5)
