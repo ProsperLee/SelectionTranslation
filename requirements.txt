@@ -1,5 +1,4 @@
 PySide6>=6.6.0
-keyboard>=0.13.5
 rapidocr-onnxruntime>=1.4.0
 numpy>=1.24.0
 translators==6.0.4

@@ -98,10 +98,13 @@ class SelectionTranslationApp(QObject):
         open_settings.triggered.connect(self.open_settings)
         view_logs = QAction("查看日志", menu)
         view_logs.triggered.connect(self.open_logs)
+        reregister = QAction("重新注册快捷键", menu)
+        reregister.triggered.connect(self._reregister_hotkeys)
         quit_action = QAction("退出", menu)
         quit_action.triggered.connect(self.quit)
         menu.addAction(open_settings)
         menu.addAction(view_logs)
+        menu.addAction(reregister)
         menu.addSeparator()
         menu.addAction(quit_action)
         self._tray.setContextMenu(menu)
@@ -186,6 +189,18 @@ class SelectionTranslationApp(QObject):
     def _on_hotkey_error(self, message: str):
         logger.error("快捷键注册失败: %s", message)
         self._tray.showMessage("划词翻译", message, QSystemTrayIcon.MessageIcon.Warning, 4000)
+
+    def _reregister_hotkeys(self) -> None:
+        """托盘手动恢复：锁屏/休眠后偶发失效时使用。"""
+        self._hotkeys.set_paused(False)
+        self._apply_hotkeys_from_config()
+        logger.info("已手动重新注册快捷键")
+        self._tray.showMessage(
+            "划词翻译",
+            "快捷键已重新注册",
+            QSystemTrayIcon.MessageIcon.Information,
+            2500,
+        )
 
     def open_settings(self):
         if self._settings_window is None or not _qt_alive(self._settings_window):

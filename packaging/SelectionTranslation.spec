@@ -21,13 +21,13 @@ hiddenimports = [
     "uiautomation",
     "comtypes",
     "comtypes.stream",
-    "keyboard",
     "pyperclip",
     "translators",
     "rapidocr_onnxruntime",
     "onnxruntime",
     "PIL",
     "PIL.Image",
+    "win_subprocess",
 ]
 
 # OCR 模型与 onnxruntime 原生库必须整包收集

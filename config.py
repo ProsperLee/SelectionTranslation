@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 from ui.constants import (
@@ -115,7 +116,7 @@ def patch_config(**changes) -> dict:
 
 def acquire_settings_lock() -> None:
     try:
-        SETTINGS_LOCK_FILE.write_text("1", encoding="utf-8")
+        SETTINGS_LOCK_FILE.write_text(f"{os.getpid()}\n", encoding="utf-8")
     except OSError:
         pass
 
@@ -128,4 +129,27 @@ def release_settings_lock() -> None:
 
 
 def settings_lock_active() -> bool:
-    return SETTINGS_LOCK_FILE.is_file()
+    """设置页录入快捷键期间为 True；进程已死或锁过期则自动清理。"""
+    if not SETTINGS_LOCK_FILE.is_file():
+        return False
+    try:
+        age = time.time() - SETTINGS_LOCK_FILE.stat().st_mtime
+        raw = SETTINGS_LOCK_FILE.read_text(encoding="utf-8").strip().splitlines()
+        pid = int(raw[0]) if raw and raw[0].isdigit() else None
+    except (OSError, ValueError, TypeError):
+        release_settings_lock()
+        return False
+
+    # 录入中途崩溃会留下锁文件，导致全局快捷键一直暂停
+    if age > 600:
+        release_settings_lock()
+        return False
+    if pid is not None and pid != os.getpid():
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            release_settings_lock()
+            return False
+        # 其它进程的锁：本进程不认，避免误暂停
+        return False
+    return True
