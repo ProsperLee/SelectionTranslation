@@ -27,7 +27,7 @@ from ui.constants import (
 )
 from ui.icons import IconButton
 from ui.note_colors import random_note_colors
-from ui.styles import note_text_edit_qss
+from ui.styles import NOTE_SCROLLBAR_QSS, NOTE_TEXT_EDIT_QSS
 from ui.text_utils import install_placeholder_ime_fix
 from ui.window_pin import apply_window_pin, toggle_window_pin
 
@@ -141,6 +141,11 @@ class StickyNoteWindow(FramelessWindow):
         self.textarea = QPlainTextEdit()
         self.textarea.setPlaceholderText("记点什么…")
         self.textarea.setFrameShape(QFrame.Shape.NoFrame)
+        self.textarea.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.textarea.viewport().setAttribute(
+            Qt.WidgetAttribute.WA_TranslucentBackground, True
+        )
+        self.textarea.setStyleSheet(NOTE_TEXT_EDIT_QSS + NOTE_SCROLLBAR_QSS)
         self.textarea.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
@@ -217,7 +222,6 @@ class StickyNoteWindow(FramelessWindow):
         self._content_color = QColor(content)
         self._header_color = QColor(header)
         self.color_btn.set_swatch_color(self._content_color)
-        self.textarea.setStyleSheet(note_text_edit_qss(self._content_color.name()))
         self.update()
 
     def _randomize_color(self):
