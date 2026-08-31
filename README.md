@@ -22,7 +22,7 @@ Windows 桌面划词 / OCR 翻译工具，附带屏幕吸色。全局热键捕�
 
 ### 方式一：安装包（推荐）
 
-运行 `release\SelectionTranslation-Setup-1.0.0.exe`（需先执行 [`packaging\build.ps1`](#打包成安装包windows) 生成）。默认安装到 `%LOCALAPPDATA%\SelectionTranslation`，无需管理员权限。
+运行 `release\SelectionTranslation-Setup-1.1.0.exe`（需先执行 [`packaging\build.ps1`](#打包成安装包windows) 生成）。默认安装到 `%LOCALAPPDATA%\SelectionTranslation`，无需管理员权限；升级安装会保留已有 `settings_config.json`。
 
 ### 方式二：源码运行
 
@@ -164,13 +164,15 @@ winget install --id JRSoftware.InnoSetup -e
 | 路径 | 说明 |
 | --- | --- |
 | `release\app\SelectionTranslation\SelectionTranslation.exe` | 免安装可运行目录 |
-| `release\SelectionTranslation-Setup-1.0.0.exe` | 安装包（需 Inno Setup） |
+| `release\SelectionTranslation-Setup-1.1.0.exe` | 安装包（需 Inno Setup；版本见 `packaging/version.txt`） |
 
 安装包特性：
 
+- 安装向导按钮为英文，任务选项为中文
 - 可自选安装目录（默认 `%LOCALAPPDATA%\SelectionTranslation`，显示名仍为「划词翻译」，无需管理员）
 - 可选「开机自启」（写入与应用内一致的 `HKCU\...\Run\SelectionTranslation`，并同步 `settings_config.json`）
 - 可选桌面快捷方式；卸载时清理自启项
+- **首次安装**才写入默认配置（含吸色快捷键）；覆盖/升级安装**不会**覆盖已有用户配置
 
 ## 说明
 

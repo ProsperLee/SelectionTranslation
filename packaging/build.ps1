@@ -2,7 +2,8 @@
 param(
     [switch]$Clean,
     [switch]$SkipInstaller,
-    [switch]$SkipIcon
+    [switch]$SkipIcon,
+    [string]$Version = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,10 +14,27 @@ $ReleaseDir = Join-Path $Root "release"
 $AppOut = Join-Path $ReleaseDir "app"
 $Spec = Join-Path $PSScriptRoot "SelectionTranslation.spec"
 $Iss = Join-Path $PSScriptRoot "installer.iss"
+$VersionFile = Join-Path $PSScriptRoot "version.txt"
+$ExampleConfig = Join-Path $Root "settings_config.example.json"
 
 function Write-Step([string]$Message) {
     Write-Host ""
     Write-Host ("==== {0} ====" -f $Message) -ForegroundColor Cyan
+}
+
+function Get-AppVersion {
+    param([string]$Override)
+    if ($Override) {
+        return $Override.Trim()
+    }
+    if (-not (Test-Path $VersionFile)) {
+        throw "Missing version file: $VersionFile"
+    }
+    $text = (Get-Content $VersionFile -Raw).Trim()
+    if (-not $text) {
+        throw "Version file is empty: $VersionFile"
+    }
+    return $text
 }
 
 function Find-ISCC {
@@ -35,8 +53,14 @@ function Find-ISCC {
 
 Push-Location $Root
 try {
+    $AppVersion = Get-AppVersion -Override $Version
+    Write-Host ("Building SelectionTranslation v{0}" -f $AppVersion) -ForegroundColor Green
+
     if (-not (Test-Path $VenvPython)) {
-        throw "venv not found: $VenvPython"
+        throw "venv not found: $VenvPython`nCreate it: python -m venv .venv"
+    }
+    if (-not (Test-Path $ExampleConfig)) {
+        throw "Missing example config: $ExampleConfig"
     }
 
     Write-Step "Install/upgrade pyinstaller"
@@ -72,7 +96,8 @@ try {
         $Spec
     if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed: exit $LASTEXITCODE" }
 
-    $exePath = Join-Path $AppOut "SelectionTranslation\SelectionTranslation.exe"
+    $appFolder = Join-Path $AppOut "SelectionTranslation"
+    $exePath = Join-Path $appFolder "SelectionTranslation.exe"
     if (-not (Test-Path $exePath)) {
         throw "Missing output: $exePath"
     }
@@ -80,15 +105,19 @@ try {
 
     # Place high-res ico next to exe for shortcut IconFilename
     $icoSrc = Join-Path $PSScriptRoot "app.ico"
-    $icoDst = Join-Path $AppOut "SelectionTranslation\app.ico"
+    $icoDst = Join-Path $appFolder "app.ico"
     if (Test-Path $icoSrc) {
         Copy-Item $icoSrc $icoDst -Force
         Write-Host "Copied app.ico beside exe for sharp shortcuts"
     }
 
+    # Ensure example config ships beside exe (spec also bundles it; keep in sync)
+    Copy-Item $ExampleConfig (Join-Path $appFolder "settings_config.example.json") -Force
+    Write-Host "Synced settings_config.example.json"
+
     if ($SkipInstaller) {
         Write-Host "Skipped installer (-SkipInstaller)"
-        Write-Host ("App folder: {0}" -f (Join-Path $AppOut "SelectionTranslation"))
+        Write-Host ("App folder: {0}" -f $appFolder)
         return
     }
 
@@ -104,16 +133,21 @@ try {
     }
 
     Write-Host "Using: $iscc"
-    Write-Step "Compile installer (ISCC progress below)"
-    & $iscc $Iss
+    Write-Step "Compile installer v$AppVersion (ISCC progress below)"
+    & $iscc "/DMyAppVersion=$AppVersion" $Iss
     if ($LASTEXITCODE -ne 0) { throw "ISCC failed: exit $LASTEXITCODE" }
 
-    $setup = Get-ChildItem $ReleaseDir -Filter "SelectionTranslation-Setup-*.exe" |
-        Sort-Object LastWriteTime -Descending |
+    $setup = Get-ChildItem $ReleaseDir -Filter "SelectionTranslation-Setup-$AppVersion.exe" |
         Select-Object -First 1
+    if (-not $setup) {
+        $setup = Get-ChildItem $ReleaseDir -Filter "SelectionTranslation-Setup-*.exe" |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+    }
     if ($setup) {
         Write-Host ""
         Write-Host ("Setup ready: {0}" -f $setup.FullName) -ForegroundColor Green
+        Write-Host ("Size: {0:N2} MB" -f ($setup.Length / 1MB))
     }
     Write-Host "Done." -ForegroundColor Green
 }

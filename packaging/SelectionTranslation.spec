@@ -29,6 +29,7 @@ hiddenimports = [
     "PIL.Image",
     "win_subprocess",
     "tts",
+    "color_picker",
 ]
 
 # OCR 模型与 onnxruntime 原生库必须整包收集
