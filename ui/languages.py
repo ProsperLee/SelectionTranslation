@@ -70,7 +70,7 @@ def detect_language_label(text: str) -> str:
     """根据输入文本猜测语言显示名；无法判断时返回 \"--\"。"""
     text = (text or "").strip()
     if not text:
-        return "检测中..."
+        return "--"
     if re.search(r"[\u4e00-\u9fff]", text):
         return language_label("zh-CN") or "中文"
     if re.search(r"[\u3040-\u30ff\u31f0-\u31ff]", text):
@@ -87,4 +87,4 @@ def detect_language_label(text: str) -> str:
         return language_label("th") or "泰语"
     if re.search(r"[\u0370-\u03ff]", text):
         return language_label("el") or "希腊语"
-    return "检测中..."
+    return "--"
