@@ -24,6 +24,7 @@ from ui.constants import (
     MIN_NOTE_HEIGHT,
     MIN_NOTE_WIDTH,
     NOTE_HEADER_HEIGHT,
+    NOTE_WINDOW_ALPHA,
 )
 from ui.icons import IconButton
 from ui.note_colors import random_note_colors
@@ -46,6 +47,7 @@ class _ColorSwatchButton(QPushButton):
 
     def set_swatch_color(self, color: QColor):
         self._swatch = QColor(color)
+        self._swatch.setAlpha(255)
         self.update()
 
     def paintEvent(self, event):
@@ -77,6 +79,7 @@ class StickyNoteWindow(FramelessWindow):
             | Qt.WindowType.Tool
             | Qt.WindowType.Window
         )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setMinimumSize(MIN_NOTE_WIDTH, MIN_NOTE_HEIGHT)
 
         self._pinned = False
@@ -166,17 +169,23 @@ class StickyNoteWindow(FramelessWindow):
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         path = QPainterPath()
         path.addRoundedRect(rect, BORDER_RADIUS, BORDER_RADIUS)
-        painter.fillPath(path, self._content_color)
+        painter.fillPath(path, self._with_alpha(self._content_color))
 
         header_path = QPainterPath()
         header_rect = QRectF(0.5, 0.5, self.width() - 1, NOTE_HEADER_HEIGHT)
         header_path.addRect(header_rect)
         clipped = path.intersected(header_path)
-        painter.fillPath(clipped, self._header_color)
+        painter.fillPath(clipped, self._with_alpha(self._header_color))
 
-        painter.setPen(QPen(QColor(0, 0, 0, 40), 1))
+        painter.setPen(QPen(QColor(0, 0, 0, 45), 1))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(path)
+
+    @staticmethod
+    def _with_alpha(color: QColor, alpha: int = NOTE_WINDOW_ALPHA) -> QColor:
+        c = QColor(color)
+        c.setAlpha(max(0, min(255, int(alpha))))
+        return c
 
     def eventFilter(self, obj, event):
         from PySide6.QtCore import QEvent

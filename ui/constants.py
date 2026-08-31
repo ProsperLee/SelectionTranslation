@@ -57,6 +57,7 @@ DEFAULT_NOTE_HEIGHT = 300
 MIN_NOTE_WIDTH = 160
 MIN_NOTE_HEIGHT = 120
 NOTE_HEADER_HEIGHT = 32
+NOTE_WINDOW_ALPHA = 200           # 便签底色透明度（0–255，约 78%）
 
 # ── 翻译面板内部 ───────────────────────────────────────
 RESULT_HEADER_HEIGHT = 30         # 结果区顶栏高度
