@@ -15,7 +15,7 @@ from ctypes import wintypes
 from PySide6.QtCore import QObject, QTimer, Signal
 from typing import Callable
 
-from selection import peek_selection as default_peek_selection
+from selection import peek_qt_text_selection, peek_selection as default_peek_selection
 from ui.selection_bubble import SelectionBubble
 
 VK_LBUTTON = 0x01
@@ -163,6 +163,15 @@ class SelectionBubbleWatcher(QObject):
         with self._peek_lock:
             self._peek_gen += 1
             gen = self._peek_gen
+
+        # 本进程 Qt 文本框（便签等）必须在 GUI 线程取锚点，UIA 坐标常错位
+        try:
+            qt_text, qt_anchor = peek_qt_text_selection()
+        except Exception:
+            qt_text, qt_anchor = "", None
+        if qt_text:
+            self._peek_ready.emit(cursor_x, cursor_y, qt_text, qt_anchor, gen)
+            return
 
         def worker():
             time.sleep(PEEK_DELAY_S)

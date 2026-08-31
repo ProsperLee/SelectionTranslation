@@ -99,6 +99,35 @@ def physical_global_to_qt(x: int, y: int) -> tuple[int, int]:
     return int(x), int(y)
 
 
+def qt_global_to_physical(qx: int, qy: int) -> tuple[int, int]:
+    """Qt 全局逻辑坐标 → Win32 物理桌面坐标。"""
+    if sys.platform != "win32":
+        return int(qx), int(qy)
+
+    from PySide6.QtCore import QPoint
+    from PySide6.QtGui import QGuiApplication
+
+    app = QGuiApplication.instance()
+    if app is None:
+        return int(qx), int(qy)
+
+    screen = app.screenAt(QPoint(int(qx), int(qy))) or app.primaryScreen()
+    if screen is None:
+        return int(qx), int(qy)
+
+    handle = _screen_native_handle(screen)
+    bounds = _monitor_rect(handle) if handle else None
+    if bounds is None:
+        return int(qx), int(qy)
+
+    left, top, _right, _bottom = bounds
+    geo = screen.geometry()
+    dpr = float(screen.devicePixelRatio()) or 1.0
+    px = left + (int(qx) - geo.left()) * dpr
+    py = top + (int(qy) - geo.top()) * dpr
+    return int(round(px)), int(round(py))
+
+
 def qt_screen_at_physical(x: int, y: int):
     from PySide6.QtCore import QPoint
     from PySide6.QtGui import QGuiApplication

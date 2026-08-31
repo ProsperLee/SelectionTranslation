@@ -144,6 +144,11 @@ def peek_selection(
     读取当前选区。优先 UIA，再编辑框 API / WM_COPY（不注入 Ctrl+C）。
     返回 (文本, 选区末尾屏幕坐标或 None)。
     """
+    # 本进程 Qt 文本框（如便签）须在 GUI 线程用 Qt API，UIA 锚点常不准
+    qt_text, qt_anchor = peek_qt_text_selection()
+    if qt_text:
+        return qt_text, qt_anchor
+
     text, anchor = get_uia_selection(cursor_x, cursor_y)
     if text.strip():
         return text, anchor
@@ -152,6 +157,51 @@ def peek_selection(
         return text, None
     text = _get_text_via_wm_copy(prefer_hwnd=foreground_hwnd())
     return (text or "").strip(), None
+
+
+def peek_qt_text_selection() -> tuple[str, tuple[int, int] | None]:
+    """
+    读取本进程内 QPlainTextEdit / QTextEdit 的选区与末尾锚点（物理坐标）。
+    必须在 Qt GUI 线程调用；非 GUI 线程或无选区时返回 ("", None)。
+    """
+    try:
+        from PySide6.QtCore import QThread
+        from PySide6.QtGui import QTextCursor
+        from PySide6.QtWidgets import QApplication, QPlainTextEdit, QTextEdit
+
+        from ui.constants import SELECTION_BUBBLE_SIZE
+        from ui.screen_coords import qt_global_to_physical
+    except Exception:
+        return "", None
+
+    app = QApplication.instance()
+    if app is None or QThread.currentThread() is not app.thread():
+        return "", None
+
+    widget = app.focusWidget()
+    if not isinstance(widget, (QPlainTextEdit, QTextEdit)):
+        return "", None
+
+    cursor = widget.textCursor()
+    if not cursor.hasSelection():
+        return "", None
+
+    raw = cursor.selectedText() or ""
+    # QTextDocument 用 U+2029 表示段落分隔
+    text = raw.replace("\u2029", "\n").strip()
+    if not text:
+        return "", None
+
+    end_cursor = QTextCursor(cursor)
+    end_cursor.setPosition(cursor.selectionEnd())
+    # cursorRect 相对 viewport
+    rect = widget.cursorRect(end_cursor)
+    viewport = widget.viewport()
+    top_left = viewport.mapToGlobal(rect.topRight())
+    # 按钮贴在选区末字右侧、行高居中
+    qx = int(top_left.x()) + 2
+    qy = int(top_left.y()) + max(0, (rect.height() - SELECTION_BUBBLE_SIZE) // 2)
+    return text, qt_global_to_physical(qx, qy)
 
 
 def get_uia_selection(
@@ -313,32 +363,66 @@ def _get_uia_selection_impl(
 
 
 def _selection_anchor_from_rects(rects) -> tuple[int, int] | None:
-    """取选区最后一个包围盒的右下外侧，作为浮动按钮锚点。"""
+    """取选区最后一个包围盒的右侧，贴近末行垂直居中（多行时贴底行）。"""
+    box = _normalize_last_rect(rects)
+    if box is None:
+        return None
+    left, top, right, bottom = box
+    if right <= 0 and bottom <= 0 and left <= 0 and top <= 0:
+        return None
+    x = right + 2
+    height = max(1, bottom - top)
+    bubble_size = SELECTION_BUBBLE_SIZE
+    if height <= bubble_size * 1.5:
+        # 单行 / 矮选区：垂直居中于该行
+        y = top + (height - bubble_size) // 2
+    else:
+        # 多行整块包围盒：贴末行底部，避免落在选区正中
+        y = bottom - bubble_size
+    return x, y
+
+
+def _normalize_last_rect(rects) -> tuple[int, int, int, int] | None:
+    """统一解析 UIA 包围盒为 (left, top, right, bottom)。"""
     if not rects:
         return None
     try:
-        last = list(rects)[-1]
+        items = list(rects)
     except Exception:
         return None
+    if not items:
+        return None
+
+    # 常见：平铺 float [l, t, w, h, ...]
+    if all(isinstance(v, (int, float)) for v in items):
+        if len(items) < 4:
+            return None
+        # 取最后一组
+        n = len(items) - (len(items) % 4)
+        if n < 4:
+            return None
+        left, top, width, height = (float(items[n - 4 + i]) for i in range(4))
+        return int(left), int(top), int(left + width), int(top + height)
+
+    last = items[-1]
     try:
-        right = int(getattr(last, "right", None) or 0)
-        bottom = int(getattr(last, "bottom", None) or 0)
-        top = int(getattr(last, "top", None) or 0)
-        left = int(getattr(last, "left", None) or 0)
+        if isinstance(last, (tuple, list)) and len(last) >= 4:
+            left, top, a, b = (float(last[i]) for i in range(4))
+            # 可能是 l,t,w,h 或 l,t,r,b
+            if a >= left and b >= top and (a - left) > 2 and (b - top) > 2:
+                # 更像 right/bottom
+                return int(left), int(top), int(a), int(b)
+            return int(left), int(top), int(left + a), int(top + b)
+
+        left = int(getattr(last, "left", 0) or 0)
+        top = int(getattr(last, "top", 0) or 0)
+        right = int(getattr(last, "right", 0) or 0)
+        bottom = int(getattr(last, "bottom", 0) or 0)
         if right <= left and hasattr(last, "width"):
             right = left + int(last.width())
         if bottom <= top and hasattr(last, "height"):
             bottom = top + int(last.height())
-        if right <= 0 and bottom <= 0 and left <= 0:
-            return None
-        x = right + 2
-        height = max(1, bottom - top)
-        bubble_size = SELECTION_BUBBLE_SIZE
-        if height < bubble_size:
-            y = bottom + 2
-        else:
-            y = top + (height - bubble_size) // 2
-        return x, y
+        return left, top, right, bottom
     except Exception:
         return None
 
