@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtGui import QKeyEvent, QKeySequence
 from PySide6.QtWidgets import QLabel, QLineEdit, QPlainTextEdit, QTextEdit
 
@@ -20,6 +20,62 @@ def enable_readonly_textarea_selection(editor: QPlainTextEdit | QTextEdit) -> No
         Qt.TextInteractionFlag.TextSelectableByMouse
         | Qt.TextInteractionFlag.TextSelectableByKeyboard
     )
+
+
+def install_placeholder_ime_fix(widget: QPlainTextEdit | QLineEdit | QTextEdit) -> None:
+    """
+    修复 Windows IME 预编辑时 placeholder 与输入文字重叠。
+
+    Qt 在预上字阶段文档仍为空，会继续绘制 placeholder，叠在预编辑文字下方。
+    """
+    _PlaceholderImeFix(widget)
+
+
+class _PlaceholderImeFix(QObject):
+    def __init__(self, widget: QPlainTextEdit | QLineEdit | QTextEdit):
+        super().__init__(widget)
+        self._widget = widget
+        self._placeholder = widget.placeholderText()
+        self._composing = False
+        widget.installEventFilter(self)
+        if isinstance(widget, QLineEdit):
+            widget.textChanged.connect(lambda *_: self._sync())
+        else:
+            widget.textChanged.connect(self._sync)
+        self._sync()
+
+    def _has_text(self) -> bool:
+        w = self._widget
+        if isinstance(w, QLineEdit):
+            return bool(w.text())
+        return bool(w.toPlainText())
+
+    def _sync(self) -> None:
+        w = self._widget
+        if not self._placeholder:
+            self._placeholder = w.placeholderText()
+        if self._has_text() or self._composing:
+            if w.placeholderText():
+                w.setPlaceholderText("")
+        elif not w.placeholderText():
+            w.setPlaceholderText(self._placeholder)
+
+    def eventFilter(self, obj, event):
+        if obj is not self._widget:
+            return False
+        et = event.type()
+        if et == QEvent.Type.InputMethod:
+            preedit = ""
+            try:
+                preedit = event.preeditString() or ""
+            except Exception:
+                pass
+            self._composing = bool(preedit)
+            QTimer.singleShot(0, self._sync)
+        elif et == QEvent.Type.FocusOut:
+            self._composing = False
+            QTimer.singleShot(0, self._sync)
+        return False
 
 
 class NoSelectLineEdit(QLineEdit):

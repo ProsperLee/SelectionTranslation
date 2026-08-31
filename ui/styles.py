@@ -177,6 +177,22 @@ QPlainTextEdit {{
 }}
 """
 
+
+def note_text_edit_qss(bg_hex: str) -> str:
+    """便签正文样式：用不透明底色，避免透明背景导致 placeholder 重影。"""
+    return (
+        f"""
+QPlainTextEdit {{
+    background: {bg_hex};
+    border: none;
+    color: #333333;
+    font-size: {FONT_SIZE}px;
+    padding: {WIDGET_MARGIN_H}px;
+}}
+"""
+        + NOTE_SCROLLBAR_QSS
+    )
+
 COMBO_QSS = f"""
 QComboBox {{
     background: transparent;

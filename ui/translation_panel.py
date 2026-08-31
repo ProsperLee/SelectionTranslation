@@ -35,7 +35,7 @@ from ui.languages import detect_language_label, display_to_code, sync_language_c
 from ui.translation_services import ENGINE_ITEMS, engine_api_code, normalize_engine
 from ui.icons import IconButton, PrimaryIconButton
 from ui.styles import RESULT_EDIT_QSS, SCROLLBAR_QSS, TEXT_EDIT_QSS
-from ui.text_utils import disable_label_selection, enable_readonly_textarea_selection, enable_textarea_selection
+from ui.text_utils import disable_label_selection, enable_readonly_textarea_selection, enable_textarea_selection, install_placeholder_ime_fix
 from ui.widgets import LangComboBox, RoundedPanel, ServiceComboBox, SplitLineWidget, ToastTip
 from ui.window_pin import toggle_window_pin
 from tts import shared_tts
@@ -191,6 +191,7 @@ class TranslationPanel(QWidget):
         self.textarea.setStyleSheet(TEXT_EDIT_QSS + SCROLLBAR_QSS)
         self.textarea.setFrameShape(QFrame.Shape.NoFrame)
         enable_textarea_selection(self.textarea)
+        install_placeholder_ime_fix(self.textarea)
         text_layout.addWidget(self.textarea)
 
         tool = QWidget()
