@@ -1,0 +1,135 @@
+/**
+ * 浏览器预览壳共用样式（不依赖 VS Code 主题变量时的兜底色）。
+ * 三栏合并 / 双栏 Diff 的 pane 布局与上传按钮都在这里。
+ */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  color: #cccccc;
+  font-family: "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+  font-size: 13px;
+  background: #1e1e1e;
+  overflow: hidden;
+  --vscode-editor-background: #1e1e1e;
+  --vscode-foreground: #cccccc;
+  --vscode-descriptionForeground: #9d9d9d;
+  --vscode-panel-border: #3c3c3c;
+  --vscode-editor-font-family: Consolas, "Cascadia Mono", monospace;
+  --vscode-editor-font-size: 12px;
+  --vscode-editorLineNumber-foreground: #858585;
+  --vscode-editorGroupHeader-tabsBackground: #252526;
+  --vscode-button-background: #0e639c;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-secondaryBackground: #3a3d41;
+  --vscode-button-secondaryForeground: #f0f0f0;
+}
+
+/* 三栏：左 | gutter | 结果 | gutter | 右 */
+.jb-merge-grid {
+  display: grid;
+  grid-template-columns: 1fr 64px 1fr 64px 1fr;
+  grid-template-rows: 28px 1fr;
+  height: 100%;
+  width: 100%;
+  position: relative;
+}
+
+/* 双栏 Diff：左 | gutter | 右 */
+.jb-diff-grid {
+  display: grid;
+  grid-template-columns: 1fr 44px 1fr;
+  grid-template-rows: 28px 1fr;
+  height: 100%;
+  width: 100%;
+  position: relative;
+}
+
+.jb-pane-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 11px;
+  color: #9d9d9d;
+  white-space: nowrap;
+  overflow: hidden;
+  border-bottom: 1px solid #3c3c3c;
+  background: #1e1e1e;
+}
+
+.jb-title-result {
+  justify-content: center;
+}
+
+.jb-pane-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* 栏目标题右侧：上传本地文件 */
+.jb-pane-upload {
+  margin-left: auto;
+  flex: 0 0 auto;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #9d9d9d;
+}
+
+.jb-pane-upload:hover {
+  color: #cccccc;
+  background: rgba(127, 127, 127, 0.16);
+}
+
+.jb-pane-upload .jb-svg svg {
+  width: 14px;
+  height: 14px;
+}
+
+.jb-merge-grid::before,
+.jb-merge-grid::after,
+.jb-diff-grid::before {
+  content: "";
+  grid-row: 1;
+  border-bottom: 1px solid #3c3c3c;
+  background: #1e1e1e;
+}
+
+.jb-merge-grid::before {
+  grid-column: 2;
+}
+
+.jb-merge-grid::after {
+  grid-column: 4;
+}
+
+.jb-diff-grid::before {
+  grid-column: 2;
+}
+
+.jb-pane-body {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.jb-gutter {
+  position: relative;
+  grid-row: 2;
+  min-width: 0;
+  overflow: hidden;
+  background: #1e1e1e;
+}

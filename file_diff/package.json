@@ -1,0 +1,24 @@
+{
+  "name": "file-diff",
+  "private": true,
+  "version": "0.1.0",
+  "description": "本地双文件三栏合并 / 并排 Diff（基于 Merge Studio webview，浏览器可运行）",
+  "license": "MIT",
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "start": "node esbuild.js && npx --yes serve -l 5173 ."
+  },
+  "dependencies": {
+    "monaco-editor": "^0.55.1",
+    "vscode-diff": "^3.0.1"
+  },
+  "devDependencies": {
+    "dompurify": "3.4.11",
+    "esbuild": "^0.28.1",
+    "typescript": "^5.9.0"
+  },
+  "overrides": {
+    "dompurify": "3.4.11"
+  }
+}

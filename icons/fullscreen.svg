@@ -1,6 +1,7 @@
 <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M6 2.5H2.5V6" stroke="#000000" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M10 2.5h3.5V6" stroke="#000000" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M6 13.5H2.5V10" stroke="#000000" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M10 13.5h3.5V10" stroke="#000000" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 进入全屏：四角向外展开 -->
+  <path d="M5.5 2.5H2.5V5.5" stroke="#000000" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10.5 2.5h3V5.5" stroke="#000000" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M5.5 13.5H2.5V10.5" stroke="#000000" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10.5 13.5h3V10.5" stroke="#000000" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

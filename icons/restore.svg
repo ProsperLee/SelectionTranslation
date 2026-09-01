@@ -1,0 +1,7 @@
+<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 退出全屏：四角向内收拢 -->
+  <path d="M2.5 5.5V2.5H5.5" stroke="#000000" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M13.5 5.5V2.5H10.5" stroke="#000000" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M2.5 10.5V13.5H5.5" stroke="#000000" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M13.5 10.5V13.5H10.5" stroke="#000000" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

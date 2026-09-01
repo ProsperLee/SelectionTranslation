@@ -35,6 +35,7 @@ from selection_task import SelectionCaptureTask
 from sticky_notes_store import load_notes
 from ui.constants import FONT_SIZE, TRAY_FONT_SIZE
 from ui.icons import load_app_icon
+from ui.file_diff_window import FileDiffWindow
 from ui.log_window import LogWindow
 from ui.ocr_window import OCRWindow
 from ui.screen_coords import cursor_physical_pos, place_window_near_physical
@@ -73,6 +74,7 @@ class SelectionTranslationApp(QObject):
         self._ocr_window: OCRWindow | None = None
         self._settings_window: SettingsWindow | None = None
         self._log_window: LogWindow | None = None
+        self._file_diff_window: FileDiffWindow | None = None
         self._sticky_notes: list[StickyNoteWindow] = []
         self._ocr_task: OcrTask | None = None
         self._selection_task: SelectionCaptureTask | None = None
@@ -109,12 +111,15 @@ class SelectionTranslationApp(QObject):
         reregister.triggered.connect(self._reregister_hotkeys)
         show_notes = QAction("显示全部便签", menu)
         show_notes.triggered.connect(self.show_all_sticky_notes)
+        file_diff = QAction("文件对比", menu)
+        file_diff.triggered.connect(self.open_file_diff)
         quit_action = QAction("退出", menu)
         quit_action.triggered.connect(self.quit)
         menu.addAction(open_settings)
         menu.addAction(view_logs)
         menu.addAction(reregister)
         menu.addAction(show_notes)
+        menu.addAction(file_diff)
         menu.addSeparator()
         menu.addAction(quit_action)
         self._tray.setContextMenu(menu)
@@ -250,6 +255,22 @@ class SelectionTranslationApp(QObject):
     def _on_log_window_destroyed(self, window) -> None:
         if self._log_window is window or not _qt_alive(self._log_window):
             self._log_window = None
+
+    def open_file_diff(self):
+        if self._file_diff_window is None or not _qt_alive(self._file_diff_window):
+            window = FileDiffWindow()
+            window.destroyed.connect(
+                lambda *_args, w=window: self._on_file_diff_window_destroyed(w)
+            )
+            self._file_diff_window = window
+        self._file_diff_window.show()
+        self._file_diff_window.raise_()
+        self._file_diff_window.activateWindow()
+        logger.info("打开文件对比")
+
+    def _on_file_diff_window_destroyed(self, window) -> None:
+        if self._file_diff_window is window or not _qt_alive(self._file_diff_window):
+            self._file_diff_window = None
 
     def _clear_settings_window(self):
         if self.sender() is self._settings_window or not _qt_alive(self._settings_window):
@@ -655,6 +676,8 @@ class SelectionTranslationApp(QObject):
 
 def run_app() -> int:
     setup_logging()
+    # Qt WebEngine（文件对比）要求在创建 QApplication 之前开启共享 OpenGL 上下文
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )

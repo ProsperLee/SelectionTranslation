@@ -16,6 +16,19 @@ datas = [
     (str(ROOT / "settings_config.example.json"), "."),
 ]
 
+# 文件对比前端（需事先 npm run build 生成 dist/）
+_file_diff = ROOT / "file_diff"
+if (_file_diff / "dist" / "webview" / "main.js").is_file():
+    datas.append((str(_file_diff / "index.html"), "file_diff"))
+    datas.append((str(_file_diff / "diff.html"), "file_diff"))
+    datas.append((str(_file_diff / "public"), "file_diff/public"))
+    datas.append((str(_file_diff / "dist"), "file_diff/dist"))
+else:
+    print(
+        "[spec] WARNING: file_diff/dist missing — run: cd file_diff && npm run build",
+        file=sys.stderr,
+    )
+
 binaries = []
 hiddenimports = [
     "uiautomation",
@@ -30,6 +43,9 @@ hiddenimports = [
     "win_subprocess",
     "tts",
     "color_picker",
+    "PySide6.QtWebEngineWidgets",
+    "PySide6.QtWebEngineCore",
+    "PySide6.QtWebChannel",
 ]
 
 # OCR 模型与 onnxruntime 原生库必须整包收集
@@ -47,7 +63,26 @@ try:
 except Exception:
     pass
 
-# 不要 collect_all(PySide6)：会把 WebEngine 等未用模块全部打进去
+# Qt WebEngine 运行时（Process + resources + translations）
+try:
+    import PySide6
+
+    _pyside = Path(PySide6.__file__).resolve().parent
+    _we_proc = _pyside / "QtWebEngineProcess.exe"
+    if _we_proc.is_file():
+        binaries.append((str(_we_proc), "."))
+    _we_res = _pyside / "resources"
+    if _we_res.is_dir():
+        datas.append((str(_we_res), "PySide6/resources"))
+    _we_tr = _pyside / "translations"
+    if _we_tr.is_dir():
+        # 只带 qtwebengine 语言包，避免整包 translations 过大
+        for qm in _we_tr.glob("qtwebengine*.qm"):
+            datas.append((str(qm), "PySide6/translations"))
+except Exception as exc:  # noqa: BLE001
+    print(f"[spec] QtWebEngine resources skipped: {exc}", file=sys.stderr)
+
+# 不要 collect_all(PySide6)：体积过大；WebEngine 已按需收集
 block_cipher = None
 
 a = Analysis(
@@ -60,9 +95,6 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        "PySide6.QtWebEngine",
-        "PySide6.QtWebEngineCore",
-        "PySide6.QtWebEngineWidgets",
         "PySide6.QtWebEngineQuick",
         "PySide6.Qt3DCore",
         "PySide6.Qt3DRender",

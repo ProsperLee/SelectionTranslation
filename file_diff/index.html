@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>文件对比 — 三栏合并</title>
+  <link href="dist/webview/main.css" rel="stylesheet" />
+  <link href="public/harness.css" rel="stylesheet" />
+</head>
+<body class="vscode-dark">
+  <div id="root"><div id="placeholder">加载中…</div></div>
+  <script src="public/harness-boot.js"></script>
+  <script src="dist/webview/main.js"></script>
+  <script>
+    window.postMessage({
+      type: "init",
+      fileName: "",
+      conflictType: "content",
+      source: "none",
+      hasBase: true,
+      oursLabel: "文件1",
+      theirsLabel: "文件2",
+      base: "",
+      ours: "",
+      theirs: "",
+      result: "",
+    }, "*");
+  </script>
+</body>
+</html>

@@ -9,6 +9,9 @@ venv/
 env/
 ENV/
 
+# Node
+node_modules/
+
 # Distribution / packaging
 build/
 dist/
