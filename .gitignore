@@ -72,6 +72,7 @@ ehthumbs.db
 
 # Local config / temp
 settings_config.json
+sticky_notes.json
 .settings_editing.lock
 *.local
 tmp/

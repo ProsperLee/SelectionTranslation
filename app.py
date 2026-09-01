@@ -32,6 +32,7 @@ from screenshot_selector import ScreenshotSelector
 from selection import force_foreground, foreground_hwnd, peek_selection
 from selection_bubble_watcher import SelectionBubbleWatcher
 from selection_task import SelectionCaptureTask
+from sticky_notes_store import load_notes
 from ui.constants import FONT_SIZE, TRAY_FONT_SIZE
 from ui.icons import load_app_icon
 from ui.log_window import LogWindow
@@ -105,11 +106,14 @@ class SelectionTranslationApp(QObject):
         view_logs.triggered.connect(self.open_logs)
         reregister = QAction("重新注册快捷键", menu)
         reregister.triggered.connect(self._reregister_hotkeys)
+        show_notes = QAction("显示全部便签", menu)
+        show_notes.triggered.connect(self.show_all_sticky_notes)
         quit_action = QAction("退出", menu)
         quit_action.triggered.connect(self.quit)
         menu.addAction(open_settings)
         menu.addAction(view_logs)
         menu.addAction(reregister)
+        menu.addAction(show_notes)
         menu.addSeparator()
         menu.addAction(quit_action)
         self._tray.setContextMenu(menu)
@@ -122,6 +126,7 @@ class SelectionTranslationApp(QObject):
         self._config = load_config()
         self._config["start_on_boot"] = enabled
         QTimer.singleShot(300, self._sync_selection_bubble)
+        QTimer.singleShot(0, self._restore_sticky_notes)
         self._hotkeys.start()
         logger.info(
             "应用已启动 | 划词=%s OCR=%s 吸色=%s 便签=%s 划词按钮=%s 开机自启=%s",
@@ -495,13 +500,37 @@ class SelectionTranslationApp(QObject):
             placement_physical=placement,
             placement_mode="cursor",
         )
+        self._register_sticky_note(note, focus=True)
+
+    def _register_sticky_note(self, note: StickyNoteWindow, *, focus: bool = False) -> None:
         note.create_requested.connect(self.open_sticky_note)
         note.destroyed.connect(lambda *_args, w=note: self._on_sticky_note_destroyed(w))
         self._sticky_notes.append(note)
         note.show()
         note.raise_()
-        note.activateWindow()
-        note.textarea.setFocus()
+        if focus:
+            note.activateWindow()
+            note.textarea.setFocus()
+
+    def _restore_sticky_notes(self) -> None:
+        records = load_notes()
+        if not records:
+            return
+        logger.info("恢复便签 | 数量=%d", len(records))
+        for record in records:
+            note = StickyNoteWindow(record=record)
+            self._register_sticky_note(note, focus=False)
+
+    def show_all_sticky_notes(self) -> None:
+        """托盘：显示当前会话中全部便签（含已隐藏）。"""
+        visible = 0
+        for note in list(self._sticky_notes):
+            if not _qt_alive(note):
+                continue
+            note.show()
+            note.raise_()
+            visible += 1
+        logger.info("显示全部便签 | 数量=%d", visible)
 
     def _on_sticky_note_destroyed(self, window) -> None:
         self._sticky_notes = [n for n in self._sticky_notes if n is not window and _qt_alive(n)]
@@ -608,6 +637,10 @@ class SelectionTranslationApp(QObject):
             self._ocr_task.wait(2000)
         for note in list(self._sticky_notes):
             if _qt_alive(note):
+                try:
+                    note.flush_persist()
+                except Exception:
+                    logger.exception("退出前保存便签失败")
                 note.close()
         self._sticky_notes.clear()
         self._bubble_watcher.shutdown()

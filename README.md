@@ -14,7 +14,7 @@ Windows 桌面划词 / OCR 翻译工具，附带屏幕吸色与便签。托盘�
 | 窗口置顶与布局记忆 | ✅ | ✅ | — | — |
 | 框选截图预览 / 保存 | — | ✅ | — | — |
 | 跨屏取色 / HEX·RGBA | — | — | ✅ | — |
-| 多窗便签 / 换色 / 缩放 | — | — | — | ✅ |
+| 多窗便签 / 换色 / 缩放 / 本地记忆 | — | — | — | ✅ |
 | 开机自启 | ✅ | ✅ | ✅ | ✅ |
 
 ## 安装
@@ -53,6 +53,7 @@ python main.py
 | 打开设置 | 快捷键、划词按钮、开机自启等 |
 | 查看日志 | 本次启动以来的运行日志（彩色） |
 | 重新注册快捷键 | 休眠 / 锁屏后热键失效时可手动恢复 |
+| 显示全部便签 | 显示当前已隐藏的全部便签 |
 | 退出 | 关闭应用 |
 
 ## 默认快捷键
@@ -93,8 +94,10 @@ python main.py
 
 1. 按便签快捷键（默认 `Ctrl+Alt+N`）新建便签
 2. 标题栏可拖动；右下角可缩放
-3. **置顶** / **新增** / **换色** / **关闭** 仅作用于当前便签
-4. 换色为随机浅色，标题栏与正文区颜色近似但不相同
+3. **置顶** / **新增** / **换色** / **隐藏（−）** / **关闭（删除）** 仅作用于当前便签
+4. 有内容时防抖保存到本地（含位置、颜色、尺寸）；无内容不保存
+5. 关闭需二次确认并删除本地记录；隐藏后可在托盘菜单「显示全部便签」找回
+6. 重启应用时自动恢复已保存的便签
 
 ### 朗读
 
@@ -103,6 +106,7 @@ python main.py
 ## 配置
 
 运行时配置：`settings_config.json`（由设置页写入；安装版优先与 exe 同目录，不可写时落到 `%LOCALAPPDATA%\SelectionTranslation`）  
+便签数据：同目录下的 `sticky_notes.json`  
 示例：`settings_config.example.json`
 
 | 字段 | 说明 |
@@ -135,12 +139,14 @@ SelectionTranslation/
 ├── ocr.py / ocr_task.py          # OCR 识别
 ├── screenshot_selector.py        # 框选截图
 ├── color_picker.py               # 屏幕吸色
+├── sticky_notes_store.py         # 便签本地持久化
 ├── packaging/                    # 打包脚本（PyInstaller + Inno Setup）
 ├── icons/                        # SVG 图标
 └── ui/                           # 界面
     ├── sticky_note_window.py     # 桌面便签
+    ├── note_confirm_dialog.py    # 便签删除确认框
     ├── window_pin.py             # 窗口置顶公共逻辑
-    ├── note_colors.py            # 便签浅色配色
+    ├── note_colors.py            # 便签配色
     ├── translation_workspace.py  # 划词 / OCR 共用窗口
     ├── translation_panel.py      # 翻译面板（复制、朗读）
     ├── screenshot_panel.py       # OCR 截图区

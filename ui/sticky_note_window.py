@@ -1,8 +1,8 @@
-"""桌面便签窗口：浅色便签、置顶 / 新增 / 换色 / 关闭、拖拽与缩放。"""
+"""桌面便签窗口：置顶 / 新增 / 换色 / 隐藏 / 关闭、拖拽与缩放、防抖本地保存。"""
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QRectF, Signal
+from PySide6.QtCore import Qt, QRectF, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPalette, QPen
 from PySide6.QtWidgets import (
     QFrame,
@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from sticky_notes_store import delete_note, new_note_id, upsert_note
 from ui.base_window import FramelessWindow
 from ui.constants import (
     BORDER_RADIUS,
@@ -28,9 +29,12 @@ from ui.constants import (
 )
 from ui.icons import IconButton
 from ui.note_colors import contrast_text_color, is_dark_color, random_note_colors
+from ui.note_confirm_dialog import NoteConfirmDialog
 from ui.styles import note_scrollbar_qss, note_text_edit_qss
 from ui.text_utils import install_placeholder_ime_fix
 from ui.window_pin import apply_window_pin, toggle_window_pin
+
+NOTE_PERSIST_DEBOUNCE_MS = 450
 
 
 class _ColorSwatchButton(QPushButton):
@@ -69,6 +73,7 @@ class StickyNoteWindow(FramelessWindow):
         *,
         placement_physical: tuple[int, int] | None = None,
         placement_mode: str = "cursor",
+        record: dict | None = None,
     ):
         super().__init__(show_header=False)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
@@ -81,6 +86,7 @@ class StickyNoteWindow(FramelessWindow):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setMinimumSize(MIN_NOTE_WIDTH, MIN_NOTE_HEIGHT)
 
+        self._note_id: str | None = None
         self._pinned = False
         self._content_color = QColor("#F0B6F0")
         self._header_color = QColor("#EFC1EF")
@@ -88,20 +94,26 @@ class StickyNoteWindow(FramelessWindow):
         self._placement_physical = placement_physical
         self._placement_mode = placement_mode
         self._placement_applied = False
+        self._loading = False
+        self._persist_timer = QTimer(self)
+        self._persist_timer.setSingleShot(True)
+        self._persist_timer.setInterval(NOTE_PERSIST_DEBOUNCE_MS)
+        self._persist_timer.timeout.connect(self._persist_now)
 
         self.body.setContentsMargins(0, 0, 0, 0)
         self._build_ui()
-        self._apply_colors(self._content_color, self._header_color)
 
-        self.resize(DEFAULT_NOTE_WIDTH, DEFAULT_NOTE_HEIGHT)
+        if record is not None:
+            self._apply_record(record)
+        else:
+            self._apply_colors(self._content_color, self._header_color)
+            self.resize(DEFAULT_NOTE_WIDTH, DEFAULT_NOTE_HEIGHT)
+            self._randomize_color()
+            if self._placement_physical is not None:
+                self._apply_placement()
+
         self.enable_corner_resize(self._on_resize)
         self._border_overlay.hide()
-        # 换色首开也随机一次，避免多窗同色
-        self._randomize_color()
-
-        # 在 show 之前定位，避免先闪到默认位置
-        if self._placement_physical is not None:
-            self._apply_placement()
 
     def _build_ui(self):
         root = QWidget()
@@ -124,6 +136,9 @@ class StickyNoteWindow(FramelessWindow):
             "plus.svg", variant="on_light", button_size=HEADER_BTN_SIZE
         )
         self.color_btn = _ColorSwatchButton()
+        self.hide_btn = IconButton(
+            "minus.svg", variant="on_light", button_size=HEADER_BTN_SIZE
+        )
         self.close_btn = IconButton(
             "close.svg", variant="on_light", button_size=HEADER_BTN_SIZE
         )
@@ -132,6 +147,7 @@ class StickyNoteWindow(FramelessWindow):
         header_layout.addWidget(self.add_btn, 0, Qt.AlignmentFlag.AlignVCenter)
         header_layout.addWidget(self.color_btn, 0, Qt.AlignmentFlag.AlignVCenter)
         header_layout.addStretch(1)
+        header_layout.addWidget(self.hide_btn, 0, Qt.AlignmentFlag.AlignVCenter)
         header_layout.addWidget(self.close_btn, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._note_header.setCursor(Qt.CursorShape.SizeAllCursor)
@@ -156,7 +172,9 @@ class StickyNoteWindow(FramelessWindow):
         self.pin_btn.clicked.connect(self._toggle_pin)
         self.add_btn.clicked.connect(self.create_requested.emit)
         self.color_btn.clicked.connect(self._randomize_color)
-        self.close_btn.clicked.connect(self.close)
+        self.hide_btn.clicked.connect(self._hide_note)
+        self.close_btn.clicked.connect(self._request_close)
+        self.textarea.textChanged.connect(self._schedule_persist)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -208,6 +226,7 @@ class StickyNoteWindow(FramelessWindow):
                     self._drag_pos = None
                     if self.mouseGrabber() is self:
                         self.releaseMouse()
+                    self._schedule_persist()
                     return True
         return super().eventFilter(obj, event)
 
@@ -223,9 +242,20 @@ class StickyNoteWindow(FramelessWindow):
             self._drag_pos = None
             if self.mouseGrabber() is self:
                 self.releaseMouse()
+            self._schedule_persist()
             event.accept()
             return
         super().mouseReleaseEvent(event)
+
+    def moveEvent(self, event):
+        super().moveEvent(event)
+        if not self._loading and self.isVisible():
+            self._schedule_persist()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if not self._loading and self.isVisible():
+            self._schedule_persist()
 
     def _apply_colors(self, content: QColor, header: QColor):
         self._content_color = QColor(content)
@@ -247,10 +277,12 @@ class StickyNoteWindow(FramelessWindow):
         self.textarea.setPalette(pal)
 
         icon_variant = "light" if is_dark_color(self._header_color) else "on_light"
-        for btn in (self.pin_btn, self.add_btn, self.close_btn):
+        for btn in (self.pin_btn, self.add_btn, self.hide_btn, self.close_btn):
             btn.set_variant(icon_variant)
 
         self.update()
+        if not self._loading:
+            self._schedule_persist()
 
     def _randomize_color(self):
         content, header = random_note_colors(avoid_content=self._content_color)
@@ -259,6 +291,7 @@ class StickyNoteWindow(FramelessWindow):
     def _toggle_pin(self):
         self._pinned = toggle_window_pin(self, self._pinned)
         self.pin_btn.set_active(self._pinned)
+        self._schedule_persist()
 
     def set_pinned(self, pinned: bool):
         self._pinned = apply_window_pin(self, pinned)
@@ -266,6 +299,9 @@ class StickyNoteWindow(FramelessWindow):
 
     def is_pinned(self) -> bool:
         return self._pinned
+
+    def note_id(self) -> str | None:
+        return self._note_id
 
     def _apply_placement(self):
         if self._placement_applied or self._placement_physical is None:
@@ -286,9 +322,93 @@ class StickyNoteWindow(FramelessWindow):
             max(MIN_NOTE_WIDTH, self.width() + delta_x),
             max(MIN_NOTE_HEIGHT, self.height() + delta_y),
         )
+        self._schedule_persist()
+
+    def _hide_note(self):
+        self.flush_persist()
+        self.hide()
+
+    def _request_close(self):
+        dialog = NoteConfirmDialog(
+            message="确定删除此便签？删除后不可恢复。",
+            content_color=self._content_color,
+            header_color=self._header_color,
+            confirm_text="删除",
+            cancel_text="取消",
+            parent=self,
+        )
+        if dialog.exec() != NoteConfirmDialog.DialogCode.Accepted:
+            return
+        self._persist_timer.stop()
+        if self._note_id:
+            delete_note(self._note_id)
+            self._note_id = None
+        self.close()
+
+    def _apply_record(self, record: dict):
+        self._loading = True
+        try:
+            self._note_id = str(record.get("id") or "") or None
+            content = QColor(str(record.get("content_color") or "#F0B6F0"))
+            header = QColor(str(record.get("header_color") or "#EFC1EF"))
+            if not content.isValid():
+                content = QColor("#F0B6F0")
+            if not header.isValid():
+                header = QColor("#EFC1EF")
+            self._apply_colors(content, header)
+
+            w = max(MIN_NOTE_WIDTH, int(record.get("width", DEFAULT_NOTE_WIDTH)))
+            h = max(MIN_NOTE_HEIGHT, int(record.get("height", DEFAULT_NOTE_HEIGHT)))
+            x = int(record.get("x", 100))
+            y = int(record.get("y", 100))
+            self.setGeometry(x, y, w, h)
+            self._placement_applied = True
+
+            self.textarea.blockSignals(True)
+            self.textarea.setPlainText(str(record.get("text") or ""))
+            self.textarea.blockSignals(False)
+
+            self.set_pinned(bool(record.get("pinned", False)))
+        finally:
+            self._loading = False
+
+    def to_record(self) -> dict:
+        text = self.textarea.toPlainText()
+        nid = self._note_id or new_note_id()
+        return {
+            "id": nid,
+            "text": text,
+            "x": int(self.x()),
+            "y": int(self.y()),
+            "width": int(self.width()),
+            "height": int(self.height()),
+            "content_color": self._content_color.name(),
+            "header_color": self._header_color.name(),
+            "pinned": bool(self._pinned),
+        }
+
+    def _schedule_persist(self):
+        if self._loading:
+            return
+        self._persist_timer.start()
+
+    def _persist_now(self):
+        text = self.textarea.toPlainText()
+        if not text.strip():
+            if self._note_id:
+                delete_note(self._note_id)
+                self._note_id = None
+            return
+        record = self.to_record()
+        self._note_id = record["id"]
+        upsert_note(record)
+
+    def flush_persist(self):
+        if self._persist_timer.isActive():
+            self._persist_timer.stop()
+        self._persist_now()
 
     def _raise_floating_controls(self):
-        # 浅色便签不用深色描边遮罩，只保证缩放手柄在上
         if self._resize_handle is not None:
             self._resize_handle.raise_()
         self._border_overlay.hide()
