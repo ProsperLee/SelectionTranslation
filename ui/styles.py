@@ -117,22 +117,25 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
 }}
 """
 
-# 浅色便签：半透明深色细滚动条（逻辑同 SCROLLBAR_QSS，色值适配浅底）
-NOTE_SCROLLBAR_QSS = f"""
+def note_scrollbar_qss(*, dark_bg: bool) -> str:
+    """便签滚动条：浅底用深色滑块，深底用浅色滑块。"""
+    handle = "rgba(255, 255, 255, 70)" if dark_bg else "rgba(0, 0, 0, 55)"
+    handle_hover = "rgba(255, 255, 255, 120)" if dark_bg else "rgba(0, 0, 0, 90)"
+    return f"""
 QScrollBar:vertical {{
     width: 6px;
     background: transparent;
     margin: {WIDGET_MARGIN_V}px 0;
 }}
 QScrollBar::handle:vertical {{
-    background: rgba(0, 0, 0, 55);
+    background: {handle};
     border: 1px solid transparent;
     border-radius: 999px;
     min-height: 24px;
     margin: 0 1px;
 }}
 QScrollBar::handle:vertical:hover {{
-    background: rgba(0, 0, 0, 90);
+    background: {handle_hover};
 }}
 QScrollBar::handle:vertical:pressed {{
     background: #088fff;
@@ -148,14 +151,14 @@ QScrollBar:horizontal {{
     margin: 0 {WIDGET_MARGIN_H}px;
 }}
 QScrollBar::handle:horizontal {{
-    background: rgba(0, 0, 0, 55);
+    background: {handle};
     border: 1px solid transparent;
     border-radius: 999px;
     min-width: 24px;
     margin: 1px 0;
 }}
 QScrollBar::handle:horizontal:hover {{
-    background: rgba(0, 0, 0, 90);
+    background: {handle_hover};
 }}
 QScrollBar::handle:horizontal:pressed {{
     background: #088fff;
@@ -167,11 +170,13 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
 }}
 """
 
-NOTE_TEXT_EDIT_QSS = f"""
+
+def note_text_edit_qss(*, text_color: str) -> str:
+    return f"""
 QPlainTextEdit {{
     background: transparent;
     border: none;
-    color: #333333;
+    color: {text_color};
     font-size: {FONT_SIZE}px;
     padding: {WIDGET_MARGIN_H}px;
 }}
@@ -179,6 +184,11 @@ QPlainTextEdit QWidget {{
     background: transparent;
 }}
 """
+
+
+# 默认浅色便签样式（兼容旧引用）
+NOTE_SCROLLBAR_QSS = note_scrollbar_qss(dark_bg=False)
+NOTE_TEXT_EDIT_QSS = note_text_edit_qss(text_color="#333333")
 
 COMBO_QSS = f"""
 QComboBox {{

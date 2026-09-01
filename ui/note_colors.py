@@ -1,54 +1,51 @@
-"""便签浅色配色：全色相随机，不限色板；仅约束为浅色。"""
+"""便签配色：RGB 各通道 0–255 随机；透明度由窗口 NOTE_WINDOW_ALPHA 统一控制。"""
 
 from __future__ import annotations
 
-import colorsys
 import random
 
 from PySide6.QtGui import QColor
 
-# 相对亮度下限（sRGB）：高于此视为浅色，可覆盖更鲜艳的高明度色
-_MIN_RELATIVE_LUMINANCE = 0.48
+# ITU-R BT.601 感知亮度阈值：低于此视为深色底
+_LUMA_DARK_THRESHOLD = 128.0
 
 
-def _hsl_to_qcolor(h: float, s: float, lightness: float) -> QColor:
-    r, g, b = colorsys.hls_to_rgb(h, lightness, s)
-    return QColor(int(round(r * 255)), int(round(g * 255)), int(round(b * 255)))
+def is_dark_color(color: QColor) -> bool:
+    """判断背景偏深（宜用白字）还是偏浅（宜用黑字）。"""
+    luma = 0.299 * color.red() + 0.587 * color.green() + 0.114 * color.blue()
+    return luma < _LUMA_DARK_THRESHOLD
 
 
-def _relative_luminance(color: QColor) -> float:
-    def lin(c: int) -> float:
-        x = c / 255.0
-        return x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4
-
-    r, g, b = lin(color.red()), lin(color.green()), lin(color.blue())
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+def contrast_text_color(bg: QColor) -> QColor:
+    """深色底 → 白字；浅色底 → 黑字。"""
+    return QColor(255, 255, 255) if is_dark_color(bg) else QColor(51, 51, 51)
 
 
-def _is_light(color: QColor) -> bool:
-    return _relative_luminance(color) >= _MIN_RELATIVE_LUMINANCE
+def _rand_rgb() -> QColor:
+    return QColor(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
 
-def _color_distance(a: QColor, b: QColor) -> float:
-    return (
-        (a.red() - b.red()) ** 2
-        + (a.green() - b.green()) ** 2
-        + (a.blue() - b.blue()) ** 2
-    ) ** 0.5
+def _clamp(v: int) -> int:
+    return max(0, min(255, v))
 
 
-def _random_light_base() -> tuple[float, float, float]:
-    """全色相 + 宽饱和度，用高明度保证仍是浅色。"""
-    h = random.random()
-    # 全饱和度范围；高饱和时靠更高明度压成浅色
-    s = random.random()  # 0 ~ 1
-    if s < 0.35:
-        lightness = 0.72 + random.random() * 0.22  # 低饱和：灰粉到柔和浅色
-    elif s < 0.70:
-        lightness = 0.76 + random.random() * 0.18
-    else:
-        lightness = 0.82 + random.random() * 0.14  # 高饱和：必须更亮才浅
-    return h, s, lightness
+def _near_rgb(base: QColor) -> QColor:
+    """同色附近微调，保证 header 与 content 近似但不相同。"""
+    for _ in range(16):
+        delta = random.randint(12, 40) * (1 if random.random() < 0.5 else -1)
+        color = QColor(
+            _clamp(base.red() + delta),
+            _clamp(base.green() + delta),
+            _clamp(base.blue() + delta),
+        )
+        if color.name() != base.name():
+            return color
+    # 兜底：固定偏移
+    return QColor(
+        _clamp(base.red() + 24),
+        _clamp(base.green() + 24),
+        _clamp(base.blue() + 24),
+    )
 
 
 def random_note_colors(
@@ -56,35 +53,18 @@ def random_note_colors(
     avoid_content: QColor | None = None,
 ) -> tuple[QColor, QColor]:
     """
-    返回 (content, header) 浅色对。
+    返回 (content, header)。
 
-    - 色相 / 饱和度全范围随机（全色域）
-    - 仅用相对亮度约束为浅色
-    - header 与 content 同色相、明度略有差异
+    - RGB 全范围随机（0–255）
+    - 颜色本身不设 Alpha（A 由窗口绘制时的 NOTE_WINDOW_ALPHA 决定）
+    - header 为 content 附近色，近似但不相同
     """
-    for _ in range(64):
-        h, s, content_l = _random_light_base()
-        delta = 0.025 + random.random() * 0.07
-        if random.random() < 0.65:
-            header_l = min(0.97, content_l + delta)
-        else:
-            header_l = max(0.68, content_l - delta)
-        if abs(header_l - content_l) < 0.02:
-            header_l = min(0.97, content_l + 0.035)
-
-        content = _hsl_to_qcolor(h, s, content_l)
-        header = _hsl_to_qcolor(h, s, header_l)
-        if not _is_light(content) or not _is_light(header):
+    for _ in range(32):
+        content = _rand_rgb()
+        if avoid_content is not None and content.name() == avoid_content.name():
             continue
-        if content.name() == header.name():
-            continue
-        if avoid_content is not None and _color_distance(content, avoid_content) < 35:
-            continue
+        header = _near_rgb(content)
         return content, header
 
-    # 兜底：高明度全色相随机，仍不走固定色
-    h = random.random()
-    s = 0.35 + random.random() * 0.45
-    content = _hsl_to_qcolor(h, s, 0.88)
-    header = _hsl_to_qcolor(h, s, 0.93)
-    return content, header
+    content = _rand_rgb()
+    return content, _near_rgb(content)

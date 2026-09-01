@@ -106,6 +106,13 @@ class IconButton(QPushButton):
         self._active = active
         self._apply_state(self._state if self._state != "normal" or active else "normal")
 
+    def set_variant(self, variant: str):
+        if variant == self._variant:
+            return
+        self._variant = variant
+        self._palette = self._VARIANTS[variant]
+        self._apply_state(self._state)
+
     def _apply_state(self, state: str):
         self._state = state
         if self._active and state == "normal":

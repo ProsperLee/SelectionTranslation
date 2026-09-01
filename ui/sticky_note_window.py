@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QRectF, Signal
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPalette, QPen
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -27,8 +27,8 @@ from ui.constants import (
     NOTE_WINDOW_ALPHA,
 )
 from ui.icons import IconButton
-from ui.note_colors import random_note_colors
-from ui.styles import NOTE_SCROLLBAR_QSS, NOTE_TEXT_EDIT_QSS
+from ui.note_colors import contrast_text_color, is_dark_color, random_note_colors
+from ui.styles import note_scrollbar_qss, note_text_edit_qss
 from ui.text_utils import install_placeholder_ime_fix
 from ui.window_pin import apply_window_pin, toggle_window_pin
 
@@ -42,7 +42,6 @@ class _ColorSwatchButton(QPushButton):
         self.setFixedSize(HEADER_BTN_SIZE, HEADER_BTN_SIZE)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.setToolTip("更换颜色")
         self.setStyleSheet("QPushButton { background: transparent; border: none; }")
 
     def set_swatch_color(self, color: QColor):
@@ -121,16 +120,13 @@ class StickyNoteWindow(FramelessWindow):
         self.pin_btn = IconButton(
             "pin.svg", variant="on_light", button_size=HEADER_BTN_SIZE
         )
-        self.pin_btn.setToolTip("置顶")
         self.add_btn = IconButton(
             "plus.svg", variant="on_light", button_size=HEADER_BTN_SIZE
         )
-        self.add_btn.setToolTip("新建便签")
         self.color_btn = _ColorSwatchButton()
         self.close_btn = IconButton(
             "close.svg", variant="on_light", button_size=HEADER_BTN_SIZE
         )
-        self.close_btn.setToolTip("关闭")
 
         header_layout.addWidget(self.pin_btn, 0, Qt.AlignmentFlag.AlignVCenter)
         header_layout.addWidget(self.add_btn, 0, Qt.AlignmentFlag.AlignVCenter)
@@ -148,7 +144,6 @@ class StickyNoteWindow(FramelessWindow):
         self.textarea.viewport().setAttribute(
             Qt.WidgetAttribute.WA_TranslucentBackground, True
         )
-        self.textarea.setStyleSheet(NOTE_TEXT_EDIT_QSS + NOTE_SCROLLBAR_QSS)
         self.textarea.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
@@ -177,7 +172,12 @@ class StickyNoteWindow(FramelessWindow):
         clipped = path.intersected(header_path)
         painter.fillPath(clipped, self._with_alpha(self._header_color))
 
-        painter.setPen(QPen(QColor(0, 0, 0, 45), 1))
+        border = (
+            QColor(255, 255, 255, 40)
+            if is_dark_color(self._content_color)
+            else QColor(0, 0, 0, 45)
+        )
+        painter.setPen(QPen(border, 1))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(path)
 
@@ -231,6 +231,25 @@ class StickyNoteWindow(FramelessWindow):
         self._content_color = QColor(content)
         self._header_color = QColor(header)
         self.color_btn.set_swatch_color(self._content_color)
+
+        dark = is_dark_color(self._content_color)
+        fg = contrast_text_color(self._content_color)
+        placeholder = (
+            QColor(255, 255, 255, 140) if dark else QColor(0, 0, 0, 100)
+        )
+        self.textarea.setStyleSheet(
+            note_text_edit_qss(text_color=fg.name())
+            + note_scrollbar_qss(dark_bg=dark)
+        )
+        pal = self.textarea.palette()
+        pal.setColor(QPalette.ColorRole.Text, fg)
+        pal.setColor(QPalette.ColorRole.PlaceholderText, placeholder)
+        self.textarea.setPalette(pal)
+
+        icon_variant = "light" if is_dark_color(self._header_color) else "on_light"
+        for btn in (self.pin_btn, self.add_btn, self.close_btn):
+            btn.set_variant(icon_variant)
+
         self.update()
 
     def _randomize_color(self):
