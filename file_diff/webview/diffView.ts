@@ -517,22 +517,23 @@ export class DiffView {
           return;
         }
         this.syncingScroll = true;
-        const top = editor.getScrollTop();
-        const left = editor.getScrollLeft();
-        for (const other of this.editors) {
-          if (other === editor) {
-            continue;
+        try {
+          const top = editor.getScrollTop();
+          const left = editor.getScrollLeft();
+          for (const other of this.editors) {
+            if (other === editor) {
+              continue;
+            }
+            if (event.scrollTopChanged && other.getScrollTop() !== top) {
+              other.setScrollTop(top);
+            }
+            if (event.scrollLeftChanged && other.getScrollLeft() !== left) {
+              other.setScrollLeft(left);
+            }
           }
-          if (event.scrollTopChanged && other.getScrollTop() !== top) {
-            other.setScrollTop(top);
-          }
-          if (event.scrollLeftChanged && other.getScrollLeft() !== left) {
-            other.setScrollLeft(left);
-          }
-        }
-        queueMicrotask(() => {
+        } finally {
           this.syncingScroll = false;
-        });
+        }
       });
       this.viewSubs.push(sub);
     }

@@ -301,12 +301,15 @@ export class MergeView {
 
     this.installViewListeners();
     this.installNavigationKeys();
-    this.refresh();
-    this.revealFirstPending();
-
-    this.installSyncScroll();
-    this.observeResize();
-    this.observeTheme();
+    try {
+      this.refresh();
+      this.revealFirstPending();
+    } finally {
+      // 即使 refresh 回调抛错，也必须装上滚动联动，否则三栏永远无法同步滚动
+      this.installSyncScroll();
+      this.observeResize();
+      this.observeTheme();
+    }
 
     // Fresh editors: re-arm the typing-burst base for history capture.
     if (this.typingTimer) {
@@ -1196,23 +1199,23 @@ export class MergeView {
           return;
         }
         this.syncingScroll = true;
-        const top = editor.getScrollTop();
-        const left = editor.getScrollLeft();
-        for (const other of this.editors) {
-          if (other === editor) {
-            continue;
+        try {
+          const top = editor.getScrollTop();
+          const left = editor.getScrollLeft();
+          for (const other of this.editors) {
+            if (other === editor) {
+              continue;
+            }
+            if (event.scrollTopChanged && other.getScrollTop() !== top) {
+              other.setScrollTop(top);
+            }
+            if (event.scrollLeftChanged && other.getScrollLeft() !== left) {
+              other.setScrollLeft(left);
+            }
           }
-          if (event.scrollTopChanged && other.getScrollTop() !== top) {
-            other.setScrollTop(top);
-          }
-          if (event.scrollLeftChanged && other.getScrollLeft() !== left) {
-            other.setScrollLeft(left);
-          }
-        }
-        // setScrollTop 可能同步/异步再触发 onDidScrollChange；延后清标志避免回声打断联动
-        queueMicrotask(() => {
+        } finally {
           this.syncingScroll = false;
-        });
+        }
       });
       this.viewSubs.push(sub);
     }

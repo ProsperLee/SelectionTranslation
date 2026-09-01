@@ -94,7 +94,7 @@ function button(label: string, variant: "" | "primary" | "bordered" = ""): HTMLB
 function iconButton(svg: string, title: string): HTMLButtonElement {
   const btn = button("");
   btn.classList.add("jb-icon");
-  btn.title = title;
+  btn.dataset.tip = title;
   btn.appendChild(iconElement(svg));
   return btn;
 }
@@ -102,7 +102,7 @@ function iconButton(svg: string, title: string): HTMLButtonElement {
 /** A compact icon+text action, like IntelliJ's "≫ Left / ≪≫ All / ≪ Right". */
 function iconTextButton(svg: string, label: string, title: string): HTMLButtonElement {
   const btn = button("");
-  btn.title = title;
+  btn.dataset.tip = title;
   btn.appendChild(iconElement(svg));
   btn.appendChild(document.createTextNode(label));
   return btn;
@@ -124,7 +124,7 @@ function separator(): HTMLElement {
 function whitespaceSelect(onChange: (mode: WhitespaceMode) => void): HTMLSelectElement {
   const select = document.createElement("select");
   select.className = "jb-toolbar-select";
-  select.title = "空白处理";
+  select.dataset.tip = "空白处理";
   const options: Array<[WhitespaceMode, string]> = [
     ["none", "不忽略空白"],
     ["trailing", "忽略行尾空白"],
@@ -145,7 +145,7 @@ function whitespaceSelect(onChange: (mode: WhitespaceMode) => void): HTMLSelectE
 function granularityToggle(onChange: (showWords: boolean) => void): HTMLSelectElement {
   const select = document.createElement("select");
   select.className = "jb-toolbar-select";
-  select.title = "高亮粒度";
+  select.dataset.tip = "高亮粒度";
   for (const [value, text] of [
     ["words", "按词高亮"],
     ["lines", "按行高亮"],
@@ -271,17 +271,17 @@ function startMerge(root: HTMLElement, first: MergeInitPayload & { type: "init" 
   bottomBar.className = "jb-bottom-bar";
 
   const acceptLeftBtn = button("采用左侧", "bordered");
-  acceptLeftBtn.title = "用左侧版本解决全部冲突";
+  acceptLeftBtn.dataset.tip = "用左侧版本解决全部冲突";
   const acceptRightBtn = button("采用右侧", "bordered");
-  acceptRightBtn.title = "用右侧版本解决全部冲突";
+  acceptRightBtn.dataset.tip = "用右侧版本解决全部冲突";
 
   const bottomSpacer = document.createElement("span");
   bottomSpacer.className = "jb-spacer";
 
   const cancelBtn = button("取消", "bordered");
-  cancelBtn.title = "关闭";
+  cancelBtn.dataset.tip = "关闭";
   const applyBtn = button("应用", "primary");
-  applyBtn.title = "保存中间结果到本地";
+  applyBtn.dataset.tip = "保存中间结果到本地";
 
   bottomBar.append(acceptLeftBtn, acceptRightBtn, bottomSpacer);
 
@@ -340,9 +340,8 @@ function startMerge(root: HTMLElement, first: MergeInitPayload & { type: "init" 
     applyAllBtn.disabled = nonConflictingPending === 0;
     applyRightBtn.disabled = nonConflictingPending === 0;
     // Any new resolution activity (including Reset) re-arms Apply after a
-    // completed merge and clears a pending two-step confirmation.
+    // completed merge.
     applyBtn.disabled = false;
-    disarmApply();
   };
 
   view.onLargeFile = (large) => {
@@ -609,9 +608,9 @@ function startDiff(root: HTMLElement, first: DiffInitPayload & { type: "diffInit
   const bottomSpacer = document.createElement("span");
   bottomSpacer.className = "jb-spacer";
   const cancelBtn = button("取消", "bordered");
-  cancelBtn.title = "关闭";
+  cancelBtn.dataset.tip = "关闭";
   const applyBtn = button("应用", "primary");
-  applyBtn.title = "保存右侧结果到本地";
+  applyBtn.dataset.tip = "保存右侧结果到本地";
   bottomBar.append(bottomSpacer, cancelBtn, applyBtn);
 
   app.append(toolbar, content, bottomBar);

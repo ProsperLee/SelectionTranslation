@@ -20,6 +20,18 @@ from ui.text_utils import disable_label_selection
 
 logger = logging.getLogger("file_diff")
 
+_TOOLTIP_QSS = """
+QToolTip {
+    font-size: 12px;
+    font-family: "Microsoft YaHei UI";
+    padding: 4px 8px;
+    color: #e8e8e8;
+    background-color: #2d2d2d;
+    border: 1px solid #454545;
+    border-radius: 4px;
+}
+"""
+
 _BRIDGE_JS = """
 (function () {
   function wire() {
@@ -73,6 +85,7 @@ class FileDiffWindow(FramelessWindow):
         super().__init__(show_header_border=True)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.setWindowTitle("文件对比")
+        self.setStyleSheet(_TOOLTIP_QSS)
         self.setMinimumSize(860, 520)
         self.resize(1100, 700)
         self._mode = "merge"  # "diff" | "merge"
