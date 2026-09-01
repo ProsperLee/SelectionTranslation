@@ -11,7 +11,15 @@ from PySide6.QtCore import QObject, Qt, QUrl, Slot
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEngineScript, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 from ui.base_window import FramelessWindow
 from ui.constants import FONT_SIZE, HEADER_BTN_SIZE, ICON_SIZE, WIDGET_MARGIN_H
@@ -84,8 +92,12 @@ class FileDiffWindow(FramelessWindow):
     def __init__(self):
         super().__init__(show_header_border=True)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_AlwaysShowToolTips, True)
         self.setWindowTitle("文件对比")
-        self.setStyleSheet(_TOOLTIP_QSS)
+        # QToolTip 是独立顶层窗，样式必须挂在 QApplication 上才生效
+        app = QApplication.instance()
+        if app is not None and "QToolTip {" not in (app.styleSheet() or ""):
+            app.setStyleSheet((app.styleSheet() or "") + _TOOLTIP_QSS)
         self.setMinimumSize(860, 520)
         self.resize(1100, 700)
         self._mode = "merge"  # "diff" | "merge"
