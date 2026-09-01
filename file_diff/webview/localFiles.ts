@@ -75,3 +75,42 @@ export function diffPayloadAfterUpload(
   }
   return next;
 }
+
+/** 从路径或「本地 — name.ext」标签取出扩展名（含点），无则返回空串。 */
+export function fileExtension(nameOrLabel: string): string {
+  const base =
+    (nameOrLabel || "")
+      .replace(/^本地\s*[—–-]\s*/, "")
+      .split(/[\\/]/)
+      .pop()
+      ?.trim() || "";
+  if (!base || base === "文件1" || base === "文件2") {
+    return "";
+  }
+  const dot = base.lastIndexOf(".");
+  if (dot <= 0 || dot === base.length - 1) {
+    return "";
+  }
+  return base.slice(dot).toLowerCase();
+}
+
+/**
+ * 保存默认名：未命名 + 两侧相同扩展名；两侧不同或都没有则 .txt。
+ */
+export function suggestedSaveFileName(
+  leftNameOrLabel: string,
+  rightNameOrLabel: string,
+): string {
+  const leftExt = fileExtension(leftNameOrLabel);
+  const rightExt = fileExtension(rightNameOrLabel);
+  if (leftExt && rightExt) {
+    return leftExt === rightExt ? `未命名${leftExt}` : "未命名.txt";
+  }
+  if (leftExt) {
+    return `未命名${leftExt}`;
+  }
+  if (rightExt) {
+    return `未命名${rightExt}`;
+  }
+  return "未命名.txt";
+}

@@ -27,6 +27,7 @@ import {
   diffPayloadAfterUpload,
   mergePayloadAfterUpload,
   pickTextFile,
+  suggestedSaveFileName,
 } from "./localFiles";
 import {
   arrowDown,
@@ -491,8 +492,10 @@ function startMerge(root: HTMLElement, first: MergeInitPayload & { type: "init" 
       return;
     }
     const text = view.getResultText();
-    const fileName =
-      (currentPayload.fileName || "").split(/[\\/]/).pop() || "result.txt";
+    const fileName = suggestedSaveFileName(
+      currentPayload.oursLabel || "",
+      currentPayload.theirsLabel || "",
+    );
     vscodeApi.postMessage({ type: "apply", text, fileName });
     if (typeof (window as unknown as { __fileDiffPost?: unknown }).__fileDiffPost !== "function") {
       const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
@@ -672,8 +675,10 @@ function startDiff(root: HTMLElement, first: DiffInitPayload & { type: "diffInit
       return;
     }
     const text = view.getRightText();
-    const fileName =
-      (currentPayload.fileName || "").split(/[\\/]/).pop() || "result.txt";
+    const fileName = suggestedSaveFileName(
+      currentPayload.leftLabel || "",
+      currentPayload.rightLabel || "",
+    );
     vscodeApi.postMessage({ type: "apply", text, fileName });
     // 浏览器预览：无 Qt 宿主时直接下载
     if (typeof (window as unknown as { __fileDiffPost?: unknown }).__fileDiffPost !== "function") {

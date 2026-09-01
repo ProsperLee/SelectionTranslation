@@ -312,11 +312,11 @@ class FileDiffWindow(FramelessWindow):
                 text = ""
             suggested = message.get("fileName")
             if not isinstance(suggested, str) or not suggested.strip():
-                suggested = "result.txt"
+                suggested = "未命名.txt"
             self._save_apply_text(text, suggested.strip())
 
-    def _save_apply_text(self, text: str, suggested_name: str = "result.txt") -> None:
-        name = Path(suggested_name.replace("\\", "/")).name or "result.txt"
+    def _save_apply_text(self, text: str, suggested_name: str = "未命名.txt") -> None:
+        name = Path(suggested_name.replace("\\", "/")).name or "未命名.txt"
         path, _ = QFileDialog.getSaveFileName(
             self,
             "保存对比结果",
