@@ -6,13 +6,13 @@
 .\packaging\build.ps1
 ```
 
-Version is read from `packaging/version.txt` (currently **1.1.2**) and passed to Inno Setup.
+Version is read from `packaging/version.txt` (currently **1.2.0**) and passed to Inno Setup.
 
 Progress prints continuously in the terminal (pip / PyInstaller / ISCC).
 
 ```powershell
 # Override version for a one-off build
-.\packaging\build.ps1 -Version 1.1.2
+.\packaging\build.ps1 -Version 1.2.0
 
 # Folder only, no Setup.exe
 .\packaging\build.ps1 -SkipInstaller
@@ -26,7 +26,7 @@ Progress prints continuously in the terminal (pip / PyInstaller / ISCC).
 | Path | Description |
 | --- | --- |
 | `release\app\SelectionTranslation\` | Portable folder (run `SelectionTranslation.exe`) |
-| `release\SelectionTranslation-Setup-1.1.2.exe` | Installer (needs Inno Setup 6) |
+| `release\SelectionTranslation-Setup-1.2.0.exe` | Installer (needs Inno Setup 6) |
 
 ## Installer behaviour
 
@@ -44,6 +44,6 @@ Progress prints continuously in the terminal (pip / PyInstaller / ISCC).
 | --- | --- |
 | `version.txt` | App / installer version (single source) |
 | `make_icon.py` | SVG → multi-size `app.ico` |
-| `SelectionTranslation.spec` | PyInstaller (includes `color_picker`, OCR models) |
+| `SelectionTranslation.spec` | PyInstaller (includes `color_picker`, OCR models, `file_diff`) |
 | `installer.iss` | Inno Setup script |
-| `build.ps1` | One-shot build pipeline |
+| `build.ps1` | One-shot build pipeline (also builds `file_diff` frontend) |

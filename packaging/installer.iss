@@ -1,12 +1,12 @@
 ; Inno Setup 6 — 划词翻译安装脚本
 ; 编译: packaging\build.ps1（推荐，自动传入版本号）
-; 手动: ISCC.exe /DMyAppVersion=1.1.2 packaging\installer.iss
+; 手动: ISCC.exe /DMyAppVersion=1.2.0 packaging\installer.iss
 ; 依赖: 先运行 packaging\build.ps1 生成 release\app\SelectionTranslation\
 
 #define MyAppName "划词翻译"
 #define MyAppNameEn "SelectionTranslation"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.1.2"
+  #define MyAppVersion "1.2.0"
 #endif
 #define MyAppPublisher "SelectionTranslation"
 #define MyAppExeName "SelectionTranslation.exe"

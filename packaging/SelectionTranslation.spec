@@ -16,13 +16,22 @@ datas = [
     (str(ROOT / "settings_config.example.json"), "."),
 ]
 
-# 文件对比前端（需事先 npm run build 生成 dist/）
+# 文件对比前端（需事先 npm run build 生成 dist/；不打入 source map）
 _file_diff = ROOT / "file_diff"
 if (_file_diff / "dist" / "webview" / "main.js").is_file():
     datas.append((str(_file_diff / "index.html"), "file_diff"))
     datas.append((str(_file_diff / "diff.html"), "file_diff"))
     datas.append((str(_file_diff / "public"), "file_diff/public"))
-    datas.append((str(_file_diff / "dist"), "file_diff/dist"))
+    _webview_dist = _file_diff / "dist" / "webview"
+    for _name in (
+        "main.js",
+        "main.css",
+        "editor.worker.js",
+        "ts.worker.js",
+    ):
+        _f = _webview_dist / _name
+        if _f.is_file():
+            datas.append((str(_f), "file_diff/dist/webview"))
 else:
     print(
         "[spec] WARNING: file_diff/dist missing — run: cd file_diff && npm run build",
@@ -63,24 +72,49 @@ try:
 except Exception:
     pass
 
-# Qt WebEngine 运行时（Process + resources + translations）
-try:
-    import PySide6
+    # Qt WebEngine 运行时（Process + resources + translations + 关键 DLL）
+    try:
+        import PySide6
 
-    _pyside = Path(PySide6.__file__).resolve().parent
-    _we_proc = _pyside / "QtWebEngineProcess.exe"
-    if _we_proc.is_file():
-        binaries.append((str(_we_proc), "."))
-    _we_res = _pyside / "resources"
-    if _we_res.is_dir():
-        datas.append((str(_we_res), "PySide6/resources"))
-    _we_tr = _pyside / "translations"
-    if _we_tr.is_dir():
-        # 只带 qtwebengine 语言包，避免整包 translations 过大
-        for qm in _we_tr.glob("qtwebengine*.qm"):
-            datas.append((str(qm), "PySide6/translations"))
-except Exception as exc:  # noqa: BLE001
-    print(f"[spec] QtWebEngine resources skipped: {exc}", file=sys.stderr)
+        _pyside = Path(PySide6.__file__).resolve().parent
+        _we_proc = _pyside / "QtWebEngineProcess.exe"
+        if _we_proc.is_file():
+            binaries.append((str(_we_proc), "."))
+        for _dll in (
+            "Qt6WebEngineCore.dll",
+            "Qt6WebEngineWidgets.dll",
+            "Qt6WebChannel.dll",
+            "Qt6Positioning.dll",
+            "Qt6Quick.dll",
+            "Qt6Qml.dll",
+            "Qt6QmlModels.dll",
+            "Qt6QmlMeta.dll",
+            "Qt6QmlWorkerScript.dll",
+            "Qt6OpenGL.dll",
+            "Qt6PrintSupport.dll",
+        ):
+            _p = _pyside / _dll
+            if _p.is_file():
+                binaries.append((str(_p), "."))
+        for _pyd in (
+            "QtWebEngineCore.pyd",
+            "QtWebEngineWidgets.pyd",
+            "QtWebChannel.pyd",
+            "QtPrintSupport.pyd",
+        ):
+            _p = _pyside / _pyd
+            if _p.is_file():
+                binaries.append((str(_p), "."))
+        _we_res = _pyside / "resources"
+        if _we_res.is_dir():
+            datas.append((str(_we_res), "PySide6/resources"))
+        _we_tr = _pyside / "translations"
+        if _we_tr.is_dir():
+            # 只带 qtwebengine 语言包，避免整包 translations 过大
+            for qm in _we_tr.glob("qtwebengine*.qm"):
+                datas.append((str(qm), "PySide6/translations"))
+    except Exception as exc:  # noqa: BLE001
+        print(f"[spec] QtWebEngine resources skipped: {exc}", file=sys.stderr)
 
 # 不要 collect_all(PySide6)：体积过大；WebEngine 已按需收集
 block_cipher = None

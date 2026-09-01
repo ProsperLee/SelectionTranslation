@@ -4,24 +4,25 @@ Windows 桌面划词 / OCR 翻译工具，附带屏幕吸色与便签。托盘�
 
 ## 功能
 
-| 功能 | 划词翻译 | OCR | 吸色 | 便签 |
-| --- | :---: | :---: | :---: | :---: |
-| 全局热键 | ✅ | ✅ | ✅ | ✅ |
-| 划词浮动按钮 | ✅ | — | — | — |
-| 多引擎翻译 / 语言切换 | ✅ | ✅ | — | — |
-| 词典释义 | ✅ | ✅ | — | — |
-| 复制 / 朗读 | ✅ | ✅ | — | — |
-| 窗口置顶与布局记忆 | ✅ | ✅ | — | — |
-| 框选截图预览 / 保存 | — | ✅ | — | — |
-| 跨屏取色 / HEX·RGBA | — | — | ✅ | — |
-| 多窗便签 / 换色 / 缩放 / 本地记忆 | — | — | — | ✅ |
-| 开机自启 | ✅ | ✅ | ✅ | ✅ |
+| 功能 | 划词翻译 | OCR | 吸色 | 便签 | 文件对比 |
+| --- | :---: | :---: | :---: | :---: | :---: |
+| 全局热键 | ✅ | ✅ | ✅ | ✅ | — |
+| 划词浮动按钮 | ✅ | — | — | — | — |
+| 多引擎翻译 / 语言切换 | ✅ | ✅ | — | — | — |
+| 词典释义 | ✅ | ✅ | — | — | — |
+| 复制 / 朗读 | ✅ | ✅ | — | — | — |
+| 窗口置顶与布局记忆 | ✅ | ✅ | — | — | — |
+| 框选截图预览 / 保存 | — | ✅ | — | — | — |
+| 跨屏取色 / HEX·RGBA | — | — | ✅ | — | — |
+| 多窗便签 / 换色 / 缩放 / 本地记忆 | — | — | — | ✅ | — |
+| 三栏合并 / 并排 Diff / 上传保存 | — | — | — | — | ✅ |
+| 开机自启 | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ## 安装
 
 ### 方式一：安装包（推荐）
 
-运行 `release\SelectionTranslation-Setup-1.1.2.exe`（需先执行 [`packaging\build.ps1`](#打包成安装包windows) 生成）。默认安装到 `%LOCALAPPDATA%\SelectionTranslation`，无需管理员权限；升级安装会保留已有 `settings_config.json`。
+运行 `release\SelectionTranslation-Setup-1.2.0.exe`（需先执行 [`packaging\build.ps1`](#打包成安装包windows) 生成）。默认安装到 `%LOCALAPPDATA%\SelectionTranslation`，无需管理员权限；升级安装会保留已有 `settings_config.json`。
 
 ### 方式二：源码运行
 
@@ -54,6 +55,7 @@ python main.py
 | 查看日志 | 本次启动以来的运行日志（彩色） |
 | 重新注册快捷键 | 休眠 / 锁屏后热键失效时可手动恢复 |
 | 显示全部便签 | 显示当前已隐藏的全部便签 |
+| 文件对比 | 打开本地双文件三栏合并 / 并排 Diff |
 | 退出 | 关闭应用 |
 
 ## 默认快捷键
@@ -180,7 +182,7 @@ winget install --id JRSoftware.InnoSetup -e
 | 路径 | 说明 |
 | --- | --- |
 | `release\app\SelectionTranslation\SelectionTranslation.exe` | 免安装可运行目录 |
-| `release\SelectionTranslation-Setup-1.1.2.exe` | 安装包（需 Inno Setup；版本见 `packaging/version.txt`） |
+| `release\SelectionTranslation-Setup-1.2.0.exe` | 安装包（需 Inno Setup；版本见 `packaging/version.txt`） |
 
 安装包特性：
 

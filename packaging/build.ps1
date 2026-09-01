@@ -86,6 +86,30 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "make_icon.py failed" }
     }
 
+    Write-Step "Build file_diff frontend (Monaco webview)"
+    $fileDiffDir = Join-Path $Root "file_diff"
+    $fileDiffMain = Join-Path $fileDiffDir "dist\webview\main.js"
+    if (-not (Test-Path (Join-Path $fileDiffDir "package.json"))) {
+        throw "Missing file_diff/package.json"
+    }
+    Push-Location $fileDiffDir
+    try {
+        if (-not (Test-Path (Join-Path $fileDiffDir "node_modules"))) {
+            Write-Host "npm install..."
+            & npm install
+            if ($LASTEXITCODE -ne 0) { throw "npm install failed in file_diff" }
+        }
+        & npm run build
+        if ($LASTEXITCODE -ne 0) { throw "npm run build failed in file_diff" }
+    }
+    finally {
+        Pop-Location
+    }
+    if (-not (Test-Path $fileDiffMain)) {
+        throw "file_diff build missing: $fileDiffMain"
+    }
+    Write-Host "file_diff ready: $fileDiffMain" -ForegroundColor Green
+
     Write-Step "PyInstaller build (logs = progress)"
     $pyinstaller = Join-Path $Root ".venv\Scripts\pyinstaller.exe"
     & $pyinstaller `
