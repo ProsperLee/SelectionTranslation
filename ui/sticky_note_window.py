@@ -48,9 +48,12 @@ class _ColorSwatchButton(QPushButton):
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setStyleSheet("QPushButton { background: transparent; border: none; }")
 
-    def set_swatch_color(self, color: QColor):
+    def set_swatch_color(self, color: QColor, *, dark_bg: bool = False):
         self._swatch = QColor(color)
         self._swatch.setAlpha(255)
+        self._outline = (
+            QColor(255, 255, 255, 70) if dark_bg else QColor(0, 0, 0, 50)
+        )
         self.update()
 
     def paintEvent(self, event):
@@ -60,7 +63,8 @@ class _ColorSwatchButton(QPushButton):
         size = ICON_SIZE
         x = (self.width() - size) / 2
         y = (self.height() - size) / 2
-        painter.setPen(QPen(QColor(0, 0, 0, 50), 1))
+        outline = getattr(self, "_outline", QColor(0, 0, 0, 50))
+        painter.setPen(QPen(outline, 1))
         painter.setBrush(self._swatch)
         painter.drawEllipse(QRectF(x, y, size, size))
 
@@ -109,6 +113,7 @@ class StickyNoteWindow(FramelessWindow):
             self._apply_colors(self._content_color, self._header_color)
             self.resize(DEFAULT_NOTE_WIDTH, DEFAULT_NOTE_HEIGHT)
             self._randomize_color()
+            self.set_pinned(True)
             if self._placement_physical is not None:
                 self._apply_placement()
 
@@ -260,10 +265,10 @@ class StickyNoteWindow(FramelessWindow):
     def _apply_colors(self, content: QColor, header: QColor):
         self._content_color = QColor(content)
         self._header_color = QColor(header)
-        self.color_btn.set_swatch_color(self._content_color)
 
         dark = is_dark_color(self._content_color)
         fg = contrast_text_color(self._content_color)
+        self.color_btn.set_swatch_color(self._content_color, dark_bg=dark)
         placeholder = (
             QColor(255, 255, 255, 140) if dark else QColor(0, 0, 0, 100)
         )
@@ -276,9 +281,8 @@ class StickyNoteWindow(FramelessWindow):
         pal.setColor(QPalette.ColorRole.PlaceholderText, placeholder)
         self.textarea.setPalette(pal)
 
-        icon_variant = "light" if is_dark_color(self._header_color) else "on_light"
         for btn in (self.pin_btn, self.add_btn, self.hide_btn, self.close_btn):
-            btn.set_variant(icon_variant)
+            btn.set_fg_color(fg.name(), dark_bg=dark)
 
         self.update()
         if not self._loading:

@@ -41,6 +41,7 @@ from ui.screen_coords import cursor_physical_pos, place_window_near_physical
 from ui.settings_window import SettingsWindow
 from ui.sticky_note_window import StickyNoteWindow
 from ui.translation_window import TranslationWindow
+from ui.widgets import show_screen_center_toast
 
 logger = logging.getLogger("app")
 
@@ -523,14 +524,17 @@ class SelectionTranslationApp(QObject):
 
     def show_all_sticky_notes(self) -> None:
         """托盘：显示当前会话中全部便签（含已隐藏）。"""
-        visible = 0
-        for note in list(self._sticky_notes):
-            if not _qt_alive(note):
-                continue
+        notes = [n for n in self._sticky_notes if _qt_alive(n)]
+        self._sticky_notes = notes
+        if not notes:
+            # 保持引用，避免提示被 GC 提前回收
+            self._center_toast = show_screen_center_toast("暂无便签", duration_ms=1000)
+            logger.info("显示全部便签 | 无便签")
+            return
+        for note in notes:
             note.show()
             note.raise_()
-            visible += 1
-        logger.info("显示全部便签 | 数量=%d", visible)
+        logger.info("显示全部便签 | 数量=%d", len(notes))
 
     def _on_sticky_note_destroyed(self, window) -> None:
         self._sticky_notes = [n for n in self._sticky_notes if n is not window and _qt_alive(n)]

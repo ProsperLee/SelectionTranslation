@@ -113,6 +113,29 @@ class IconButton(QPushButton):
         self._palette = self._VARIANTS[variant]
         self._apply_state(self._state)
 
+    def set_fg_color(self, color: str, *, dark_bg: bool):
+        """按背景深浅设置图标色（与便签文字对比逻辑一致）。"""
+        if dark_bg:
+            hover = "#ffffff"
+            pressed = "#d0d0d0"
+            hover_bg = "rgba(255, 255, 255, 0.12)"
+            pressed_bg = "rgba(255, 255, 255, 0.20)"
+        else:
+            hover = "#111111"
+            pressed = "#000000"
+            hover_bg = "rgba(0, 0, 0, 0.08)"
+            pressed_bg = "rgba(0, 0, 0, 0.14)"
+        self._variant = "_fg"
+        self._palette = {
+            "icon": color,
+            "hover_icon": hover,
+            "pressed_icon": pressed,
+            "hover_bg": hover_bg,
+            "pressed_bg": pressed_bg,
+            "bg": "transparent",
+        }
+        self._apply_state(self._state)
+
     def _apply_state(self, state: str):
         self._state = state
         if self._active and state == "normal":

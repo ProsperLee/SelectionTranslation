@@ -656,3 +656,96 @@ class ToastTip(QWidget):
         self._hide_group.addAnimation(slide_down)
         self._hide_group.finished.connect(self.deleteLater)
         self._hide_group.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
+
+
+class ScreenCenterToast(QWidget):
+    """无父窗口时：在当前屏幕中心显示提示，到时自动消失。"""
+
+    def __init__(self, text: str, duration_ms: int = 1000, parent=None):
+        super().__init__(parent)
+        self._duration_ms = max(0, int(duration_ms))
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.Tool
+            | Qt.WindowType.WindowStaysOnTopHint
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+
+        self.card = QFrame(self)
+        self.card.setObjectName("screenToastCard")
+        self.card.setStyleSheet(
+            f"""
+            QFrame#screenToastCard {{
+                background: #353535;
+                border: 1px solid #454545;
+                border-radius: {BORDER_RADIUS}px;
+            }}
+            QLabel {{
+                color: #f2f2f2;
+                font-size: {FONT_SIZE}px;
+                background: transparent;
+                border: none;
+            }}
+            """
+        )
+        layout = QHBoxLayout(self.card)
+        layout.setContentsMargins(
+            WIDGET_MARGIN_H * 2, WIDGET_MARGIN_V + 2, WIDGET_MARGIN_H * 2, WIDGET_MARGIN_V + 2
+        )
+        text_label = QLabel(text)
+        disable_label_selection(text_label)
+        layout.addWidget(text_label)
+
+        self._opacity = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(self._opacity)
+        self._opacity.setOpacity(0.0)
+
+        self.card.adjustSize()
+        self.resize(self.card.size())
+        self.card.move(0, 0)
+        self._place_on_screen()
+
+    def _place_on_screen(self):
+        from PySide6.QtWidgets import QApplication
+
+        screen = QApplication.screenAt(QCursor.pos())
+        if screen is None:
+            screen = QApplication.primaryScreen()
+        if screen is None:
+            return
+        geo = screen.availableGeometry()
+        x = geo.x() + (geo.width() - self.width()) // 2
+        y = geo.y() + (geo.height() - self.height()) // 2
+        self.move(x, y)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._place_on_screen()
+        fade_in = QPropertyAnimation(self._opacity, b"opacity", self)
+        fade_in.setDuration(160)
+        fade_in.setStartValue(0.0)
+        fade_in.setEndValue(1.0)
+        fade_in.setEasingCurve(QEasingCurve.Type.OutCubic)
+        fade_in.finished.connect(
+            lambda: QTimer.singleShot(self._duration_ms, self._fade_out)
+        )
+        fade_in.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
+
+    def _fade_out(self):
+        fade_out = QPropertyAnimation(self._opacity, b"opacity", self)
+        fade_out.setDuration(160)
+        fade_out.setStartValue(self._opacity.opacity())
+        fade_out.setEndValue(0.0)
+        fade_out.setEasingCurve(QEasingCurve.Type.InCubic)
+        fade_out.finished.connect(self.close)
+        fade_out.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
+
+
+def show_screen_center_toast(text: str, duration_ms: int = 1000) -> ScreenCenterToast:
+    tip = ScreenCenterToast(text, duration_ms=duration_ms)
+    tip.show()
+    tip.raise_()
+    return tip
