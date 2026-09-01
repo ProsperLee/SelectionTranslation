@@ -329,16 +329,18 @@ class StickyNoteWindow(FramelessWindow):
         self.hide()
 
     def _request_close(self):
-        dialog = NoteConfirmDialog(
-            message="确定删除此便签？删除后不可恢复。",
-            content_color=self._content_color,
-            header_color=self._header_color,
-            confirm_text="删除",
-            cancel_text="取消",
-            parent=self,
-        )
-        if dialog.exec() != NoteConfirmDialog.DialogCode.Accepted:
-            return
+        has_content = bool(self.textarea.toPlainText().strip())
+        if has_content:
+            dialog = NoteConfirmDialog(
+                message="确定删除此便签？删除后不可恢复。",
+                content_color=self._content_color,
+                header_color=self._header_color,
+                confirm_text="删除",
+                cancel_text="取消",
+                parent=self,
+            )
+            if dialog.exec() != NoteConfirmDialog.DialogCode.Accepted:
+                return
         self._persist_timer.stop()
         if self._note_id:
             delete_note(self._note_id)
