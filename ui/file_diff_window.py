@@ -102,12 +102,13 @@ class FileDiffWindow(FramelessWindow):
         self.resize(1100, 700)
         self._mode = "merge"  # "diff" | "merge"
         self._restore_geometry = None
+        self._workarea_maximized = False
         self._build_ui()
         self.enable_corner_resize(self._on_resize)
         self._load_mode(self._mode)
 
     def _on_resize(self, delta_x: int, delta_y: int) -> None:
-        if self.isFullScreen() or self.isMaximized():
+        if self._workarea_maximized or self.isFullScreen() or self.isMaximized():
             return
         self.resize(
             max(self.minimumWidth(), self.width() + delta_x),
@@ -277,16 +278,25 @@ class FileDiffWindow(FramelessWindow):
         self.layout2_btn.set_active(self._mode == "diff")
 
     def _toggle_fullscreen(self) -> None:
-        if self.isFullScreen():
-            self.showNormal()
+        """铺满当前屏工作区（availableGeometry），不遮挡系统任务栏。"""
+        if self._workarea_maximized or self.isFullScreen():
+            if self.isFullScreen():
+                self.showNormal()
+            self._workarea_maximized = False
             if self._restore_geometry is not None:
                 self.setGeometry(self._restore_geometry)
                 self._restore_geometry = None
             self.fullscreen_btn.set_icon_name("restore.svg")
             self.fullscreen_btn.setToolTip("全屏")
             return
+
         self._restore_geometry = self.geometry()
-        self.showFullScreen()
+        screen = self.screen()
+        if screen is not None:
+            self.setGeometry(screen.availableGeometry())
+        else:
+            self.showMaximized()
+        self._workarea_maximized = True
         self.fullscreen_btn.set_icon_name("maximize.svg")
         self.fullscreen_btn.setToolTip("退出全屏")
 
