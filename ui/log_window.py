@@ -49,12 +49,19 @@ class LogWindow(FramelessWindow):
         title.setStyleSheet(
             f"color: #ffffff; font-size: {FONT_SIZE}px; background: transparent;"
         )
+        self.minimize_btn = IconButton(
+            "minus.svg", variant="light", button_size=HEADER_BTN_SIZE
+        )
+        self.minimize_btn.setToolTip("最小化")
+        self.minimize_btn.clicked.connect(self.showMinimized)
         self.close_btn = IconButton(
             "close.svg", variant="light", button_size=HEADER_BTN_SIZE
         )
+        self.close_btn.setToolTip("关闭")
         self.close_btn.clicked.connect(self.close)
         header_layout.addWidget(title)
         header_layout.addStretch()
+        header_layout.addWidget(self.minimize_btn)
         header_layout.addWidget(self.close_btn)
         self.set_header_layout(header_layout)
 

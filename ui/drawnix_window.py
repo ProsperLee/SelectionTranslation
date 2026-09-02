@@ -226,6 +226,13 @@ class DrawnixWindow(FramelessWindow):
             f"color: #ffffff; font-size: {FONT_SIZE}px; background: transparent;"
         )
 
+        self.minimize_btn = IconButton(
+            "minus.svg",
+            size=ICON_SIZE,
+            variant="light",
+            button_size=HEADER_BTN_SIZE,
+        )
+        self.minimize_btn.setToolTip("最小化")
         self.fullscreen_btn = IconButton(
             "restore.svg",
             size=ICON_SIZE,
@@ -247,6 +254,7 @@ class DrawnixWindow(FramelessWindow):
         right_lay.setContentsMargins(0, 0, 0, 0)
         right_lay.setSpacing(4)
         right_lay.addStretch(1)
+        right_lay.addWidget(self.minimize_btn, 0, Qt.AlignmentFlag.AlignVCenter)
         right_lay.addWidget(self.fullscreen_btn, 0, Qt.AlignmentFlag.AlignVCenter)
         right_lay.addWidget(self.close_btn, 0, Qt.AlignmentFlag.AlignVCenter)
 
@@ -275,6 +283,7 @@ class DrawnixWindow(FramelessWindow):
         lay.addWidget(self.web, 1)
         self.body.addWidget(wrap)
 
+        self.minimize_btn.clicked.connect(self.showMinimized)
         self.fullscreen_btn.clicked.connect(self._toggle_fullscreen)
         self.close_btn.clicked.connect(self.close)
         self.web.loadFinished.connect(self._on_load_finished)

@@ -153,6 +153,13 @@ class FileDiffWindow(FramelessWindow):
         )
 
         # 窗口态：四角收拢图标 → 进入全屏；全屏态：叠方 → 退出全屏
+        self.minimize_btn = IconButton(
+            "minus.svg",
+            size=ICON_SIZE,
+            variant="light",
+            button_size=HEADER_BTN_SIZE,
+        )
+        self.minimize_btn.setToolTip("最小化")
         self.fullscreen_btn = IconButton(
             "restore.svg",
             size=ICON_SIZE,
@@ -174,6 +181,7 @@ class FileDiffWindow(FramelessWindow):
         right_lay.setContentsMargins(0, 0, 0, 0)
         right_lay.setSpacing(4)
         right_lay.addStretch(1)
+        right_lay.addWidget(self.minimize_btn, 0, Qt.AlignmentFlag.AlignVCenter)
         right_lay.addWidget(self.fullscreen_btn, 0, Qt.AlignmentFlag.AlignVCenter)
         right_lay.addWidget(self.close_btn, 0, Qt.AlignmentFlag.AlignVCenter)
 
@@ -204,6 +212,7 @@ class FileDiffWindow(FramelessWindow):
 
         self.layout3_btn.clicked.connect(lambda: self._switch_mode("merge"))
         self.layout2_btn.clicked.connect(lambda: self._switch_mode("diff"))
+        self.minimize_btn.clicked.connect(self.showMinimized)
         self.fullscreen_btn.clicked.connect(self._toggle_fullscreen)
         self.close_btn.clicked.connect(self.close)
         self._sync_mode_buttons()
