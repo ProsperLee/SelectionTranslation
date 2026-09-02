@@ -52,7 +52,29 @@ export const boardToImage = (board: PlaitBoard, options: ToImageOptions = {}) =>
   });
 };
 
-export function download(blob: Blob | MediaSource, filename: string) {
+type DrawnixHost = {
+  saveBlob: (dataUrl: string, filename: string, mime: string) => void;
+};
+
+const getDrawnixHost = (): DrawnixHost | undefined =>
+  (window as unknown as { __drawnixHost?: DrawnixHost }).__drawnixHost;
+
+const blobToDataUrl = (blob: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+
+export async function download(blob: Blob | MediaSource, filename: string) {
+  const host = getDrawnixHost();
+  if (host?.saveBlob && blob instanceof Blob) {
+    const dataUrl = await blobToDataUrl(blob);
+    host.saveBlob(dataUrl, filename, blob.type || 'application/octet-stream');
+    return;
+  }
+
   const a = document.createElement('a');
   const url = window.URL.createObjectURL(blob);
   a.href = url;

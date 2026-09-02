@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import functools
 import logging
 import socket
@@ -10,11 +11,13 @@ import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtWebEngineCore import QWebEngineSettings
+from PySide6.QtCore import QObject, Qt, QUrl, Slot
+from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtWebEngineCore import QWebEngineScript, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QApplication,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QSizePolicy,
@@ -40,6 +43,39 @@ QToolTip {
     border-radius: 4px;
 }
 """
+
+
+_BRIDGE_JS = """
+(function () {
+  function wire() {
+    if (typeof QWebChannel === "undefined" || typeof qt === "undefined") {
+      setTimeout(wire, 40);
+      return;
+    }
+    new QWebChannel(qt.webChannelTransport, function (channel) {
+      var host = channel.objects.host;
+      window.__drawnixHost = {
+        saveBlob: function (dataUrl, filename, mime) {
+          host.saveBlob(dataUrl, filename, mime);
+        }
+      };
+    });
+  }
+  wire();
+})();
+"""
+
+
+class _DrawnixBridge(QObject):
+    """前端导出图片 → Qt 保存对话框。"""
+
+    def __init__(self, window: "DrawnixWindow"):
+        super().__init__(window)
+        self._window = window
+
+    @Slot(str, str, str)
+    def saveBlob(self, data_url: str, filename: str, mime_type: str) -> None:
+        self._window._save_blob(data_url, filename, mime_type)
 
 
 def drawnix_dir() -> Path:
@@ -230,6 +266,7 @@ class DrawnixWindow(FramelessWindow):
         settings.setAttribute(
             QWebEngineSettings.WebAttribute.JavascriptEnabled, True
         )
+        self._setup_web_bridge()
 
         wrap = QWidget()
         wrap.setStyleSheet("background: #1e1e1e;")
@@ -241,6 +278,68 @@ class DrawnixWindow(FramelessWindow):
         self.fullscreen_btn.clicked.connect(self._toggle_fullscreen)
         self.close_btn.clicked.connect(self.close)
         self.web.loadFinished.connect(self._on_load_finished)
+
+    def _setup_web_bridge(self) -> None:
+        page = self.web.page()
+        self._bridge = _DrawnixBridge(self)
+        channel = QWebChannel(page)
+        channel.registerObject("host", self._bridge)
+        page.setWebChannel(channel)
+
+        scripts = page.scripts()
+        for name in ("qwebchannel", "drawnix-bridge"):
+            existing = scripts.find(name)
+            for script in list(existing):
+                scripts.remove(script)
+
+        qc = QWebEngineScript()
+        qc.setName("qwebchannel")
+        qc.setSourceUrl(QUrl("qrc:/qtwebchannel/qwebchannel.js"))
+        qc.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+        qc.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+        qc.setRunsOnSubFrames(False)
+        scripts.insert(qc)
+
+        bridge = QWebEngineScript()
+        bridge.setName("drawnix-bridge")
+        bridge.setSourceCode(_BRIDGE_JS)
+        bridge.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
+        bridge.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+        bridge.setRunsOnSubFrames(False)
+        scripts.insert(bridge)
+
+    def _save_blob(self, data_url: str, filename: str, mime_type: str) -> None:
+        try:
+            if "," not in data_url:
+                raise ValueError("invalid data url")
+            _, b64 = data_url.split(",", 1)
+            data = base64.b64decode(b64)
+        except Exception:
+            logger.exception("思维导图导出数据解析失败")
+            return
+
+        name = Path(filename.replace("\\", "/")).name or "drawnix.png"
+        ext = Path(name).suffix.lower()
+        if ext == ".png":
+            filter_str = "PNG 图片 (*.png);;所有文件 (*.*)"
+        elif ext == ".svg":
+            filter_str = "SVG 图片 (*.svg);;所有文件 (*.*)"
+        else:
+            filter_str = "所有文件 (*.*)"
+
+        path, _ = QFileDialog.getSaveFileName(self, "导出图片", name, filter_str)
+        if not path:
+            return
+        try:
+            Path(path).write_bytes(data)
+            logger.info(
+                "思维导图已导出 | path=%s mime=%s bytes=%d",
+                path,
+                mime_type,
+                len(data),
+            )
+        except Exception:
+            logger.exception("思维导图导出失败 | path=%s", path)
 
     def _on_load_finished(self, ok: bool) -> None:
         if not ok:

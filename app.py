@@ -33,6 +33,7 @@ from selection import force_foreground, foreground_hwnd, peek_selection
 from selection_bubble_watcher import SelectionBubbleWatcher
 from selection_task import SelectionCaptureTask
 from sticky_notes_store import load_notes
+from ui.about_window import AboutWindow
 from ui.constants import FONT_SIZE, TRAY_FONT_SIZE
 from ui.icons import load_app_icon
 from ui.drawnix_window import DrawnixWindow
@@ -77,6 +78,7 @@ class SelectionTranslationApp(QObject):
         self._log_window: LogWindow | None = None
         self._file_diff_window: FileDiffWindow | None = None
         self._drawnix_window: DrawnixWindow | None = None
+        self._about_window: AboutWindow | None = None
         self._sticky_notes: list[StickyNoteWindow] = []
         self._ocr_task: OcrTask | None = None
         self._selection_task: SelectionCaptureTask | None = None
@@ -117,15 +119,20 @@ class SelectionTranslationApp(QObject):
         file_diff.triggered.connect(self.open_file_diff)
         drawnix = QAction("思维导图", menu)
         drawnix.triggered.connect(self.open_drawnix)
+        about_action = QAction("关于", menu)
+        about_action.triggered.connect(self.open_about)
         quit_action = QAction("退出", menu)
         quit_action.triggered.connect(self.quit)
         menu.addAction(open_settings)
-        menu.addAction(view_logs)
-        menu.addAction(reregister)
-        menu.addAction(show_notes)
+        menu.addSeparator()
         menu.addAction(file_diff)
         menu.addAction(drawnix)
+        menu.addAction(show_notes)
         menu.addSeparator()
+        menu.addAction(view_logs)
+        menu.addAction(reregister)
+        menu.addSeparator()
+        menu.addAction(about_action)
         menu.addAction(quit_action)
         self._tray.setContextMenu(menu)
         self._tray.activated.connect(self._on_tray_activated)
@@ -292,6 +299,22 @@ class SelectionTranslationApp(QObject):
     def _on_drawnix_window_destroyed(self, window) -> None:
         if self._drawnix_window is window or not _qt_alive(self._drawnix_window):
             self._drawnix_window = None
+
+    def open_about(self):
+        if self._about_window is None or not _qt_alive(self._about_window):
+            window = AboutWindow()
+            window.destroyed.connect(
+                lambda *_args, w=window: self._on_about_window_destroyed(w)
+            )
+            self._about_window = window
+        self._about_window.show()
+        self._about_window.raise_()
+        self._about_window.activateWindow()
+        logger.info("打开关于")
+
+    def _on_about_window_destroyed(self, window) -> None:
+        if self._about_window is window or not _qt_alive(self._about_window):
+            self._about_window = None
 
     def _clear_settings_window(self):
         if self.sender() is self._settings_window or not _qt_alive(self._settings_window):

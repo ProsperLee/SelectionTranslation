@@ -111,9 +111,9 @@ export const saveAsSvg = (board: PlaitBoard) => {
     board,
     exportTransparent,
     selectedElements.length > 0 ? selectedElements : undefined
-  ).then((blob) => {
+  ).then(async (blob) => {
     const imageName = `drawnix-${new Date().getTime()}.svg`;
-    download(blob, imageName);
+    await download(blob, imageName);
   });
 };
 
@@ -124,11 +124,11 @@ export const saveAsPng = (board: PlaitBoard) => {
     board,
     exportTransparent,
     selectedElements.length > 0 ? selectedElements : undefined
-  ).then((imageBlob) => {
+  ).then(async (imageBlob) => {
     if (imageBlob) {
       const ext = 'png';
       const imageName = `drawnix-${new Date().getTime()}.${ext}`;
-      download(imageBlob, imageName);
+      await download(imageBlob, imageName);
     }
   });
 };

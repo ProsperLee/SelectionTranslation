@@ -14,6 +14,7 @@ ICON = Path(SPECPATH).resolve() / "app.ico"
 datas = [
     (str(ROOT / "icons"), "icons"),
     (str(ROOT / "settings_config.example.json"), "."),
+    (str(ROOT / "packaging" / "version.txt"), "packaging"),
 ]
 
 # merge-studio 前端（需事先 npm run build 生成 dist/；不打入 source map）
