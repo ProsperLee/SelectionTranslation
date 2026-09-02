@@ -6,7 +6,7 @@
 .\packaging\build.ps1
 ```
 
-Version is read from `packaging/version.txt` (currently **1.2.0**) and passed to Inno Setup.
+Version is read from `packaging/version.txt` (currently **1.3.0**) and passed to Inno Setup.
 
 Progress prints continuously in the terminal (pip / PyInstaller / ISCC).
 
@@ -26,7 +26,7 @@ Progress prints continuously in the terminal (pip / PyInstaller / ISCC).
 | Path | Description |
 | --- | --- |
 | `release\app\SelectionTranslation\` | Portable folder (run `SelectionTranslation.exe`) |
-| `release\SelectionTranslation-Setup-1.2.0.exe` | Installer (needs Inno Setup 6) |
+| `release\SelectionTranslation-Setup-1.3.0.exe` | Installer (needs Inno Setup 6) |
 
 ## Installer behaviour
 
@@ -44,6 +44,6 @@ Progress prints continuously in the terminal (pip / PyInstaller / ISCC).
 | --- | --- |
 | `version.txt` | App / installer version (single source) |
 | `make_icon.py` | SVG → multi-size `app.ico` |
-| `SelectionTranslation.spec` | PyInstaller (includes `color_picker`, OCR models, `web/merge-studio`) |
+| `SelectionTranslation.spec` | PyInstaller (includes `color_picker`, OCR models, `web/merge-studio`, `web/drawnix`) |
 | `installer.iss` | Inno Setup script |
-| `build.ps1` | One-shot build pipeline (also builds `web/merge-studio` frontend) |
+| `build.ps1` | One-shot build pipeline (also builds `web/merge-studio` and `web/drawnix` frontends) |

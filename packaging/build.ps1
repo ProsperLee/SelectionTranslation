@@ -110,6 +110,19 @@ try {
     }
     Write-Host "merge-studio ready: $mergeStudioMain" -ForegroundColor Green
 
+    Write-Step "Build drawnix frontend (mind map / whiteboard)"
+    $drawnixSetup = Join-Path $Root "web\drawnix\setup.ps1"
+    $drawnixIndex = Join-Path $Root "web\drawnix\dist\apps\web\index.html"
+    if (-not (Test-Path $drawnixSetup)) {
+        throw "Missing web/drawnix/setup.ps1"
+    }
+    & $drawnixSetup
+    if ($LASTEXITCODE -ne 0) { throw "web/drawnix/setup.ps1 failed" }
+    if (-not (Test-Path $drawnixIndex)) {
+        throw "drawnix build missing: $drawnixIndex"
+    }
+    Write-Host "drawnix ready: $drawnixIndex" -ForegroundColor Green
+
     Write-Step "PyInstaller build (logs = progress)"
     $pyinstaller = Join-Path $Root ".venv\Scripts\pyinstaller.exe"
     & $pyinstaller `

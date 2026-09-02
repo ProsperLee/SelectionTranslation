@@ -35,6 +35,7 @@ from selection_task import SelectionCaptureTask
 from sticky_notes_store import load_notes
 from ui.constants import FONT_SIZE, TRAY_FONT_SIZE
 from ui.icons import load_app_icon
+from ui.drawnix_window import DrawnixWindow
 from ui.file_diff_window import FileDiffWindow
 from ui.log_window import LogWindow
 from ui.ocr_window import OCRWindow
@@ -75,6 +76,7 @@ class SelectionTranslationApp(QObject):
         self._settings_window: SettingsWindow | None = None
         self._log_window: LogWindow | None = None
         self._file_diff_window: FileDiffWindow | None = None
+        self._drawnix_window: DrawnixWindow | None = None
         self._sticky_notes: list[StickyNoteWindow] = []
         self._ocr_task: OcrTask | None = None
         self._selection_task: SelectionCaptureTask | None = None
@@ -113,6 +115,8 @@ class SelectionTranslationApp(QObject):
         show_notes.triggered.connect(self.show_all_sticky_notes)
         file_diff = QAction("文件对比", menu)
         file_diff.triggered.connect(self.open_file_diff)
+        drawnix = QAction("思维导图", menu)
+        drawnix.triggered.connect(self.open_drawnix)
         quit_action = QAction("退出", menu)
         quit_action.triggered.connect(self.quit)
         menu.addAction(open_settings)
@@ -120,6 +124,7 @@ class SelectionTranslationApp(QObject):
         menu.addAction(reregister)
         menu.addAction(show_notes)
         menu.addAction(file_diff)
+        menu.addAction(drawnix)
         menu.addSeparator()
         menu.addAction(quit_action)
         self._tray.setContextMenu(menu)
@@ -271,6 +276,22 @@ class SelectionTranslationApp(QObject):
     def _on_file_diff_window_destroyed(self, window) -> None:
         if self._file_diff_window is window or not _qt_alive(self._file_diff_window):
             self._file_diff_window = None
+
+    def open_drawnix(self):
+        if self._drawnix_window is None or not _qt_alive(self._drawnix_window):
+            window = DrawnixWindow()
+            window.destroyed.connect(
+                lambda *_args, w=window: self._on_drawnix_window_destroyed(w)
+            )
+            self._drawnix_window = window
+        self._drawnix_window.show()
+        self._drawnix_window.raise_()
+        self._drawnix_window.activateWindow()
+        logger.info("打开思维导图")
+
+    def _on_drawnix_window_destroyed(self, window) -> None:
+        if self._drawnix_window is window or not _qt_alive(self._drawnix_window):
+            self._drawnix_window = None
 
     def _clear_settings_window(self):
         if self.sender() is self._settings_window or not _qt_alive(self._settings_window):

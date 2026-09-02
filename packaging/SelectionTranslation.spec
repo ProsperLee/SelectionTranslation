@@ -38,6 +38,21 @@ else:
         file=sys.stderr,
     )
 
+# drawnix 前端（需事先 npm run build:web；不打入 source map）
+_drawnix_dist = ROOT / "web" / "drawnix" / "dist" / "apps" / "web"
+if (_drawnix_dist / "index.html").is_file():
+    for _f in _drawnix_dist.rglob("*"):
+        if not _f.is_file() or _f.suffix == ".map":
+            continue
+        _rel_parent = _f.parent.relative_to(_drawnix_dist)
+        _dest = Path("web/drawnix/dist/apps/web") / _rel_parent
+        datas.append((str(_f), str(_dest)))
+else:
+    print(
+        "[spec] WARNING: web/drawnix/dist/apps/web missing — run: .\\web\\drawnix\\setup.ps1",
+        file=sys.stderr,
+    )
+
 binaries = []
 hiddenimports = [
     "uiautomation",
