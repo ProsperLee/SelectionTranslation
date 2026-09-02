@@ -1,5 +1,5 @@
 /**
- * file_diff 前端打包：只产出浏览器可用的 webview + Monaco worker。
+ * merge-studio 前端打包：只产出浏览器可用的 webview + Monaco worker。
  * 不打包 VS Code extension host。
  *
  * 产出：
@@ -30,7 +30,7 @@ const dompurifyRedirectPlugin = {
 const loggerPlugin = {
   name: "build-logger",
   setup(build) {
-    build.onStart(() => console.log("[file_diff] build started"));
+    build.onStart(() => console.log("[merge-studio] build started"));
     build.onEnd((result) => {
       for (const { text, location } of result.errors) {
         console.error(`✘ ${text}`);
@@ -38,7 +38,7 @@ const loggerPlugin = {
           console.error(`    ${location.file}:${location.line}:${location.column}`);
         }
       }
-      console.log("[file_diff] build finished");
+      console.log("[merge-studio] build finished");
     });
   },
 };

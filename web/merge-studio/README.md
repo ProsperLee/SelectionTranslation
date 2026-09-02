@@ -1,4 +1,4 @@
-# 文件对比（file_diff）
+# merge-studio
 
 浏览器里跑的本地文件对比工具：三栏合并 + 并排 Diff。  
 源自 [Merge Studio](https://github.com/GitStudioHQ/merge-studio) 的 webview / engine，已中文化并支持左右上传。
@@ -8,7 +8,7 @@
 ## 启动（浏览器预览）
 
 ```powershell
-cd file_diff
+cd web/merge-studio
 npm install
 npm start
 ```
@@ -31,7 +31,7 @@ npm start
 ## 目录
 
 ```
-file_diff/
+web/merge-studio/
 ├── index.html / diff.html   # 页面入口（空状态，无默认示例）
 ├── public/                  # harness 共用 CSS / 启动 shim
 ├── webview/                 # Monaco UI：工具栏、色带、上传

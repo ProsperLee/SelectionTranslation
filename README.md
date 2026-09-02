@@ -144,7 +144,10 @@ SelectionTranslation/
 ├── sticky_notes_store.py         # 便签本地持久化
 ├── packaging/                    # 打包脚本（PyInstaller + Inno Setup）
 ├── icons/                        # SVG 图标
+├── web/
+│   └── merge-studio/             # 文件对比前端（三栏合并 / 并排 Diff）
 └── ui/                           # 界面
+    ├── file_diff_window.py       # 文件对比窗口（嵌入 merge-studio）
     ├── sticky_note_window.py     # 桌面便签
     ├── note_confirm_dialog.py    # 便签删除确认框
     ├── window_pin.py             # 窗口置顶公共逻辑

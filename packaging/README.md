@@ -44,6 +44,6 @@ Progress prints continuously in the terminal (pip / PyInstaller / ISCC).
 | --- | --- |
 | `version.txt` | App / installer version (single source) |
 | `make_icon.py` | SVG → multi-size `app.ico` |
-| `SelectionTranslation.spec` | PyInstaller (includes `color_picker`, OCR models, `file_diff`) |
+| `SelectionTranslation.spec` | PyInstaller (includes `color_picker`, OCR models, `web/merge-studio`) |
 | `installer.iss` | Inno Setup script |
-| `build.ps1` | One-shot build pipeline (also builds `file_diff` frontend) |
+| `build.ps1` | One-shot build pipeline (also builds `web/merge-studio` frontend) |

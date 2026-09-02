@@ -86,29 +86,29 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "make_icon.py failed" }
     }
 
-    Write-Step "Build file_diff frontend (Monaco webview)"
-    $fileDiffDir = Join-Path $Root "file_diff"
-    $fileDiffMain = Join-Path $fileDiffDir "dist\webview\main.js"
-    if (-not (Test-Path (Join-Path $fileDiffDir "package.json"))) {
-        throw "Missing file_diff/package.json"
+    Write-Step "Build merge-studio frontend (Monaco webview)"
+    $mergeStudioDir = Join-Path $Root "web\merge-studio"
+    $mergeStudioMain = Join-Path $mergeStudioDir "dist\webview\main.js"
+    if (-not (Test-Path (Join-Path $mergeStudioDir "package.json"))) {
+        throw "Missing web/merge-studio/package.json"
     }
-    Push-Location $fileDiffDir
+    Push-Location $mergeStudioDir
     try {
-        if (-not (Test-Path (Join-Path $fileDiffDir "node_modules"))) {
+        if (-not (Test-Path (Join-Path $mergeStudioDir "node_modules"))) {
             Write-Host "npm install..."
             & npm install
-            if ($LASTEXITCODE -ne 0) { throw "npm install failed in file_diff" }
+            if ($LASTEXITCODE -ne 0) { throw "npm install failed in web/merge-studio" }
         }
         & npm run build
-        if ($LASTEXITCODE -ne 0) { throw "npm run build failed in file_diff" }
+        if ($LASTEXITCODE -ne 0) { throw "npm run build failed in web/merge-studio" }
     }
     finally {
         Pop-Location
     }
-    if (-not (Test-Path $fileDiffMain)) {
-        throw "file_diff build missing: $fileDiffMain"
+    if (-not (Test-Path $mergeStudioMain)) {
+        throw "merge-studio build missing: $mergeStudioMain"
     }
-    Write-Host "file_diff ready: $fileDiffMain" -ForegroundColor Green
+    Write-Host "merge-studio ready: $mergeStudioMain" -ForegroundColor Green
 
     Write-Step "PyInstaller build (logs = progress)"
     $pyinstaller = Join-Path $Root ".venv\Scripts\pyinstaller.exe"

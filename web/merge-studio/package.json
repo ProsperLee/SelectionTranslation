@@ -1,5 +1,5 @@
 {
-  "name": "file-diff",
+  "name": "merge-studio",
   "private": true,
   "version": "0.1.0",
   "description": "本地双文件三栏合并 / 并排 Diff（基于 Merge Studio webview，浏览器可运行）",

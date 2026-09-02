@@ -1,4 +1,4 @@
-"""文件对比窗口：嵌入 file_diff 前端（三栏合并 / 并排 Diff）。"""
+"""文件对比窗口：嵌入 web/merge-studio 前端（三栏合并 / 并排 Diff）。"""
 
 from __future__ import annotations
 
@@ -59,14 +59,15 @@ _BRIDGE_JS = """
 """
 
 
-def file_diff_dir() -> Path:
-    """开发态为仓库 file_diff/；打包后为 _MEIPASS/file_diff。"""
+def merge_studio_dir() -> Path:
+    """开发态为仓库 web/merge-studio/；打包后为 _MEIPASS/web/merge-studio。"""
+    rel = Path("web") / "merge-studio"
     if getattr(sys, "frozen", False):
         meipass = getattr(sys, "_MEIPASS", None)
         if meipass:
-            return Path(meipass) / "file_diff"
-        return Path(sys.executable).resolve().parent / "file_diff"
-    return Path(__file__).resolve().parent.parent / "file_diff"
+            return Path(meipass) / rel
+        return Path(sys.executable).resolve().parent / rel
+    return Path(__file__).resolve().parent.parent / rel
 
 
 class _FileDiffBridge(QObject):
@@ -237,7 +238,7 @@ class FileDiffWindow(FramelessWindow):
         scripts.insert(bridge)
 
     def _page_path(self, mode: str) -> Path:
-        root = file_diff_dir()
+        root = merge_studio_dir()
         name = "index.html" if mode == "merge" else "diff.html"
         return root / name
 
@@ -248,17 +249,17 @@ class FileDiffWindow(FramelessWindow):
             self.web.setHtml(
                 "<html><body style='background:#1e1e1e;color:#ccc;font-family:sans-serif;padding:24px'>"
                 f"<p>未找到 {path.name}。</p>"
-                "<p>请先在 file_diff 目录执行 <code>npm install &amp;&amp; npm run build</code>。</p>"
+                "<p>请先在 <code>web/merge-studio</code> 目录执行 <code>npm install &amp;&amp; npm run build</code>。</p>"
                 "</body></html>"
             )
             return
-        dist_js = file_diff_dir() / "dist" / "webview" / "main.js"
+        dist_js = merge_studio_dir() / "dist" / "webview" / "main.js"
         if not dist_js.is_file():
             logger.error("文件对比前端未构建: %s", dist_js)
             self.web.setHtml(
                 "<html><body style='background:#1e1e1e;color:#ccc;font-family:sans-serif;padding:24px'>"
                 "<p>前端尚未构建。</p>"
-                "<p>请在 <code>file_diff</code> 目录执行 <code>npm install &amp;&amp; npm run build</code> 后重试。</p>"
+                "<p>请在 <code>web/merge-studio</code> 目录执行 <code>npm install &amp;&amp; npm run build</code> 后重试。</p>"
                 "</body></html>"
             )
             return

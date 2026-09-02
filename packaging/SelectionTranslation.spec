@@ -16,13 +16,13 @@ datas = [
     (str(ROOT / "settings_config.example.json"), "."),
 ]
 
-# 文件对比前端（需事先 npm run build 生成 dist/；不打入 source map）
-_file_diff = ROOT / "file_diff"
-if (_file_diff / "dist" / "webview" / "main.js").is_file():
-    datas.append((str(_file_diff / "index.html"), "file_diff"))
-    datas.append((str(_file_diff / "diff.html"), "file_diff"))
-    datas.append((str(_file_diff / "public"), "file_diff/public"))
-    _webview_dist = _file_diff / "dist" / "webview"
+# merge-studio 前端（需事先 npm run build 生成 dist/；不打入 source map）
+_merge_studio = ROOT / "web" / "merge-studio"
+if (_merge_studio / "dist" / "webview" / "main.js").is_file():
+    datas.append((str(_merge_studio / "index.html"), "web/merge-studio"))
+    datas.append((str(_merge_studio / "diff.html"), "web/merge-studio"))
+    datas.append((str(_merge_studio / "public"), "web/merge-studio/public"))
+    _webview_dist = _merge_studio / "dist" / "webview"
     for _name in (
         "main.js",
         "main.css",
@@ -31,10 +31,10 @@ if (_file_diff / "dist" / "webview" / "main.js").is_file():
     ):
         _f = _webview_dist / _name
         if _f.is_file():
-            datas.append((str(_f), "file_diff/dist/webview"))
+            datas.append((str(_f), "web/merge-studio/dist/webview"))
 else:
     print(
-        "[spec] WARNING: file_diff/dist missing — run: cd file_diff && npm run build",
+        "[spec] WARNING: web/merge-studio/dist missing — run: cd web/merge-studio && npm run build",
         file=sys.stderr,
     )
 
