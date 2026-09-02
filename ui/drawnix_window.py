@@ -62,25 +62,51 @@ def drawnix_dist_dir() -> Path:
     return drawnix_index_path().parent
 
 
+def _index_uses_absolute_asset_urls(index_html: Path) -> bool:
+    """有 <base href="/"> 或 /assets/ 绝对路径时，file:// 会白屏，需走本地 HTTP。"""
+    try:
+        text = index_html.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return True
+    if 'base href="/"' in text or "base href='/' " in text or "base href='/'" in text:
+        return True
+    if 'src="/assets/' in text or 'href="/assets/' in text:
+        return True
+    return False
+
+
 _server: ThreadingHTTPServer | None = None
 _server_root: Path | None = None
 _server_url: str | None = None
 _server_lock = threading.Lock()
 
 
+class _QuietDrawnixHandler(SimpleHTTPRequestHandler):
+    """打包无控制台时写 stderr 会触发连接被掐断（ERR_EMPTY_RESPONSE）。"""
+
+    def log_message(self, format: str, *args) -> None:  # noqa: A003
+        logger.debug("drawnix-http | " + format, *args)
+
+    def log_error(self, format: str, *args) -> None:  # noqa: A003
+        logger.warning("drawnix-http | " + format, *args)
+
+
 def drawnix_serve_url() -> str | None:
-    """在 127.0.0.1 启动静态服务，避免 file:// 下绝对路径资源 404 导致白屏。"""
+    """在 127.0.0.1 启动静态服务（仅绝对资源路径构建产物需要）。"""
     root = drawnix_dist_dir()
     if not (root / "index.html").is_file():
         return None
 
     global _server, _server_root, _server_url
     with _server_lock:
-        if _server is not None and _server_root == root:
+        if _server is not None and _server_root == root and _server_url:
             return _server_url
 
         if _server is not None:
-            _server.shutdown()
+            try:
+                _server.shutdown()
+            except Exception:
+                logger.exception("关闭旧思维导图静态服务失败")
             _server = None
             _server_url = None
 
@@ -88,14 +114,38 @@ def drawnix_serve_url() -> str | None:
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
 
-        handler = functools.partial(SimpleHTTPRequestHandler, directory=str(root))
+        handler = functools.partial(_QuietDrawnixHandler, directory=str(root))
         httpd = ThreadingHTTPServer(("127.0.0.1", port), handler)
-        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        ready = threading.Event()
+
+        def _run() -> None:
+            ready.set()
+            try:
+                httpd.serve_forever(poll_interval=0.2)
+            except Exception:
+                logger.exception("思维导图静态服务异常退出")
+
+        threading.Thread(target=_run, daemon=True, name="drawnix-http").start()
+        if not ready.wait(timeout=2.0):
+            logger.error("思维导图静态服务启动超时")
+            return None
+
         _server = httpd
         _server_root = root
         _server_url = f"http://127.0.0.1:{port}/"
         logger.info("思维导图静态服务 | root=%s url=%s", root, _server_url)
         return _server_url
+
+
+def drawnix_page_url() -> QUrl | None:
+    path = drawnix_index_path()
+    if not path.is_file():
+        return None
+    if _index_uses_absolute_asset_urls(path):
+        url_str = drawnix_serve_url()
+        return QUrl(url_str) if url_str else None
+    # 相对资源：file:// 即可，避免打包态本地 HTTP 踩坑
+    return QUrl.fromLocalFile(str(path.resolve()))
 
 
 class DrawnixWindow(FramelessWindow):
@@ -197,8 +247,8 @@ class DrawnixWindow(FramelessWindow):
             logger.error("思维导图页面加载失败 | url=%s", self.web.url().toString())
 
     def _load_page(self) -> None:
-        url_str = drawnix_serve_url()
-        if not url_str:
+        url = drawnix_page_url()
+        if url is None:
             path = drawnix_index_path()
             logger.error("思维导图页面缺失: %s", path)
             self.web.setHtml(
@@ -209,7 +259,6 @@ class DrawnixWindow(FramelessWindow):
                 "</body></html>"
             )
             return
-        url = QUrl(url_str)
         logger.info("打开思维导图 | url=%s", url.toString())
         self.web.setUrl(url)
 
