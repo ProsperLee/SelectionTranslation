@@ -19,7 +19,7 @@ import {
   SaveAsFile,
   SaveAsImage,
   SaveToFile,
-  Socials,
+  // Socials,
 } from './app-menu-items';
 import { LanguageSwitcherMenu } from './language-switcher-menu';
 import Menu from '../../menu/menu';
@@ -72,7 +72,7 @@ export const AppToolbar = () => {
               <CleanBoard></CleanBoard>
               <MenuSeparator />
               <LanguageSwitcherMenu />
-              <Socials />
+              {/* <Socials /> */}
             </Menu>
           </PopoverContent>
         </Popover>

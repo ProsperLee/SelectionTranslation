@@ -10,7 +10,7 @@ type AppValue = {
 };
 
 const DEFAULT_THEME: PlaitTheme = {
-  themeColorMode: ThemeColorMode.starry,
+  themeColorMode: ThemeColorMode.default,
 };
 
 function withDefaultTheme(appValue: AppValue): AppValue {
