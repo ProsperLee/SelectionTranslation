@@ -164,6 +164,10 @@ SelectionTranslation/
 
 终端会持续输出进度。版本号来自 `packaging/version.txt`。
 
+```cmd
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\packaging\build.ps1"
+```
+
 ```powershell
 # 一次性：Inno Setup 6（生成 Setup.exe，可选）
 winget install --id JRSoftware.InnoSetup -e
