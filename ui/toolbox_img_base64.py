@@ -15,14 +15,15 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QScrollArea,
+    QSizePolicy,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
+from ui.icons import IconButton
 from ui.text_utils import disable_label_selection
 from ui.toolbox_widgets import (
-    CARD_QSS,
     EDGE_SCROLLBAR_QSS,
     ImageDropZone,
     PreviewBox,
@@ -52,6 +53,9 @@ def _guess_mime(path: str = "", data: bytes | None = None) -> str:
 
 
 class ImgBase64Page(QWidget):
+    # 上传框 / 解码输入 / 预览 统一尺寸，保证上下网格对齐
+    _IO_H = 168
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._encode_bytes = b""
@@ -76,109 +80,151 @@ class ImgBase64Page(QWidget):
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.addWidget(self._scroll)
-        lay = QVBoxLayout(inner)
-        lay.setContentsMargins(0, 0, 14, 0)  # 内容与滚动条留距
-        lay.setSpacing(12)
 
-        # 编码卡
-        enc = QFrame()
-        enc.setObjectName("toolCard")
-        enc.setStyleSheet(CARD_QSS)
-        enc_lay = QVBoxLayout(enc)
-        enc_lay.setContentsMargins(12, 12, 12, 12)
-        enc_lay.setSpacing(10)
-        enc_head = QHBoxLayout()
-        t1 = QLabel("图片 → 编码")
-        disable_label_selection(t1)
-        t1.setStyleSheet("color:#e8e8e8;font-size:13px;font-weight:500;background:transparent;")
-        self._enc_status = status_label()
-        enc_head.addWidget(t1)
-        enc_head.addWidget(self._enc_status, 1)
-        enc_lay.addLayout(enc_head)
+        # 整页共用一张网格：两列等宽，上传框与解码输入同列同高
+        page = QVBoxLayout(inner)
+        page.setContentsMargins(0, 0, 14, 0)
+        page.setSpacing(12)
 
         grid = QGridLayout()
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(8)
-        grid.addWidget(field_label("选择图片"), 0, 0)
-        grid.addWidget(field_label("Base64 编码（纯数据）"), 0, 1)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+
+        # —— 编码区标题 ——
+        enc_head = QWidget()
+        eh = QHBoxLayout(enc_head)
+        eh.setContentsMargins(0, 0, 0, 0)
+        eh.setSpacing(8)
+        t1 = QLabel("图片 → 编码")
+        disable_label_selection(t1)
+        t1.setStyleSheet(
+            "color:#e8e8e8;font-size:13px;font-weight:500;background:transparent;"
+        )
+        self._enc_status = status_label()
+        eh.addWidget(t1)
+        eh.addWidget(self._enc_status, 1)
+        grid.addWidget(enc_head, 0, 0, 1, 2)
+
+        grid.addWidget(field_label("选择图片"), 1, 0)
+        pure_lab_row = QWidget()
+        pure_lab_row.setStyleSheet("background:transparent;")
+        plr = QHBoxLayout(pure_lab_row)
+        plr.setContentsMargins(0, 0, 0, 0)
+        plr.setSpacing(4)
+        plr.addWidget(field_label("Base64 编码（纯数据）"), 1)
+        self._copy_pure = IconButton("copy.svg", size=13, variant="light", button_size=22)
+        self._copy_pure.setToolTip("复制")
+        self._copy_pure.clicked.connect(lambda: self._copy_text(self._out_pure, "已复制 Base64"))
+        plr.addWidget(self._copy_pure, 0, Qt.AlignmentFlag.AlignVCenter)
+        grid.addWidget(pure_lab_row, 1, 1)
+
         self._drop = ImageDropZone()
-        self._drop.setMinimumHeight(200)
-        grid.addWidget(self._drop, 1, 0, 3, 1)
+        self._size_io(self._drop)
+
+        enc_right = QWidget()
+        enc_right.setStyleSheet("background:transparent;")
+        self._size_io(enc_right)
+        er = QVBoxLayout(enc_right)
+        er.setContentsMargins(0, 0, 0, 0)
+        er.setSpacing(8)
         self._out_pure = QTextEdit()
         self._out_pure.setReadOnly(True)
         self._out_pure.setPlaceholderText("iVBORw0KGgoAAAANSUhEUg...")
         style_edit(self._out_pure)
-        self._out_pure.setMinimumHeight(90)
-        grid.addWidget(self._out_pure, 1, 1)
-        grid.addWidget(field_label("Data URL（可直接用于 img src）"), 2, 1)
+        er.addWidget(self._out_pure, 1)
+
+        data_lab_row = QWidget()
+        data_lab_row.setStyleSheet("background:transparent;")
+        dlr = QHBoxLayout(data_lab_row)
+        dlr.setContentsMargins(0, 0, 0, 0)
+        dlr.setSpacing(4)
+        dlr.addWidget(field_label("Data URL（可直接用于 img src）"), 1)
+        self._copy_data = IconButton("copy.svg", size=13, variant="light", button_size=22)
+        self._copy_data.setToolTip("复制")
+        self._copy_data.clicked.connect(lambda: self._copy_text(self._out_data, "已复制 Data URL"))
+        dlr.addWidget(self._copy_data, 0, Qt.AlignmentFlag.AlignVCenter)
+        er.addWidget(data_lab_row)
+
         self._out_data = QTextEdit()
         self._out_data.setReadOnly(True)
         self._out_data.setPlaceholderText("data:image/...;base64,...")
         style_edit(self._out_data)
-        self._out_data.setMinimumHeight(90)
-        grid.addWidget(self._out_data, 3, 1)
-        grid.setColumnStretch(0, 1)
-        grid.setColumnStretch(1, 1)
-        grid.setRowStretch(1, 1)
-        grid.setRowStretch(3, 1)
-        enc_lay.addLayout(grid, 1)
-        lay.addWidget(enc)
+        er.addWidget(self._out_data, 1)
 
-        # 解码卡
-        dec = QFrame()
-        dec.setObjectName("toolCard")
-        dec.setStyleSheet(CARD_QSS)
-        dec_lay = QVBoxLayout(dec)
-        dec_lay.setContentsMargins(12, 12, 12, 12)
-        dec_lay.setSpacing(10)
-        dec_head = QHBoxLayout()
+        grid.addWidget(self._drop, 2, 0)
+        grid.addWidget(enc_right, 2, 1)
+
+        # —— 解码区标题 + 类型 ——
+        dec_head = QWidget()
+        dh = QHBoxLayout(dec_head)
+        dh.setContentsMargins(0, 8, 0, 0)
+        dh.setSpacing(8)
         t2 = QLabel("解码 → 图片")
         disable_label_selection(t2)
-        t2.setStyleSheet("color:#e8e8e8;font-size:13px;font-weight:500;background:transparent;")
+        t2.setStyleSheet(
+            "color:#e8e8e8;font-size:13px;font-weight:500;background:transparent;"
+        )
         self._dec_status = status_label()
-        dec_head.addWidget(t2)
-        dec_head.addWidget(self._dec_status, 1)
-        dec_lay.addLayout(dec_head)
+        dh.addWidget(t2)
+        dh.addWidget(self._dec_status, 1)
+        grid.addWidget(dec_head, 3, 0, 1, 2)
 
-        type_row = QHBoxLayout()
-        type_row.setSpacing(16)
-        type_row.addWidget(field_label("输入类型"))
+        type_row = QWidget()
+        type_row.setStyleSheet("background:transparent;")
+        tr = QHBoxLayout(type_row)
+        tr.setContentsMargins(0, 0, 0, 0)
+        tr.setSpacing(16)
+        tr.addWidget(field_label("输入类型"))
         pure_wrap, self._type_pure = mark_check_option("Base64 编码", True)
         data_wrap, self._type_data = mark_check_option("Data URL", False)
-        type_row.addWidget(pure_wrap)
-        type_row.addWidget(data_wrap)
-        type_row.addStretch(1)
-        dec_lay.addLayout(type_row)
+        tr.addWidget(pure_wrap)
+        tr.addWidget(data_wrap)
+        tr.addStretch(1)
+        grid.addWidget(type_row, 4, 0, 1, 2)
 
-        # 互斥：像单选，但样式同设置页勾选框
         self._type_pure.toggled.connect(self._on_pure_toggled)
         self._type_data.toggled.connect(self._on_data_toggled)
 
-        io = QGridLayout()
-        io.setHorizontalSpacing(12)
-        io.setVerticalSpacing(8)
         self._in_label = field_label("Base64 编码（纯数据）")
-        io.addWidget(self._in_label, 0, 0)
-        io.addWidget(field_label("预览"), 0, 1)
+        grid.addWidget(self._in_label, 5, 0)
+        grid.addWidget(field_label("预览"), 5, 1)
+
         self._decode_input = QTextEdit()
         self._decode_input.setPlaceholderText("iVBORw0KGgoAAAANSUhEUg...")
         style_edit(self._decode_input)
-        self._decode_input.setMinimumHeight(200)
-        io.addWidget(self._decode_input, 1, 0)
+        self._size_io(self._decode_input)
+
         self._preview = PreviewBox("输入内容后自动预览")
-        self._preview.setMinimumHeight(200)
-        io.addWidget(self._preview, 1, 1)
-        io.setColumnStretch(0, 1)
-        io.setColumnStretch(1, 1)
-        io.setRowStretch(1, 1)
-        dec_lay.addLayout(io, 1)
-        lay.addWidget(dec, 1)
+        self._size_io(self._preview)
+
+        grid.addWidget(self._decode_input, 6, 0)
+        grid.addWidget(self._preview, 6, 1)
+
+        page.addLayout(grid)
+        page.addStretch(1)
 
         self._drop.clicked.connect(self._pick_file)
         self._drop.files_dropped.connect(self._on_files)
         self._drop.image_pasted.connect(self._on_bytes)
         self._decode_input.textChanged.connect(lambda: self._decode_timer.start())
         self._preview.download_clicked.connect(self._download_decode)
+        self._preview.copy_clicked.connect(self._copy_decode_image)
+
+    def _size_io(self, widget: QWidget) -> None:
+        """主网格单元格：固定同高，横向随列拉伸同宽。"""
+        h = self._IO_H
+        widget.setFixedHeight(h)
+        widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+    def _copy_text(self, edit: QTextEdit, ok_msg: str) -> None:
+        text = edit.toPlainText().strip()
+        if not text:
+            set_status(self._enc_status, "暂无内容可复制", False)
+            return
+        QGuiApplication.clipboard().setText(text)
+        set_status(self._enc_status, ok_msg, True)
 
     def _on_pure_toggled(self, checked: bool) -> None:
         if checked:
@@ -329,3 +375,11 @@ class ImgBase64Page(QWidget):
             set_status(self._dec_status, "已保存", True)
         except OSError as exc:
             set_status(self._dec_status, f"保存失败：{exc}", False)
+
+    def _copy_decode_image(self) -> None:
+        pix = self._preview.pixmap()
+        if pix is None or pix.isNull():
+            set_status(self._dec_status, "暂无图片可复制", False)
+            return
+        QGuiApplication.clipboard().setPixmap(pix)
+        set_status(self._dec_status, "已复制图片", True)

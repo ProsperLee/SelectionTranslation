@@ -92,25 +92,27 @@ class QrcodePage(QWidget):
         left.addWidget(self._status)
         root.addLayout(left, 1)
 
-        # 右：固定预览 + 选项
+        # 右：固定预览 + 选项（顶对齐，避免摘要区被纵向撑开）
         right = QVBoxLayout()
         right.setSpacing(10)
-        right.setAlignment(Qt.AlignmentFlag.AlignTop)
+        right.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
 
-        preview_col = QVBoxLayout()
-        preview_col.setSpacing(8)
-        preview_col.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self._preview = PreviewBox("点击生成后显示二维码", fixed_size=_PREVIEW_SIZE)
-        preview_col.addWidget(self._preview, 0, Qt.AlignmentFlag.AlignLeft)
+        right.addWidget(self._preview, 0, Qt.AlignmentFlag.AlignHCenter)
+
         self._summary = QLabel("QR Code, 15%容错, 300x300px")
         disable_label_selection(self._summary)
-        self._summary.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self._summary.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         self._summary.setFixedWidth(_PREVIEW_SIZE)
-        self._summary.setStyleSheet("color:#888;font-size:12px;background:transparent;")
-        preview_col.addWidget(self._summary, 0, Qt.AlignmentFlag.AlignLeft)
-        right.addLayout(preview_col)
+        self._summary.setFixedHeight(22)
+        self._summary.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self._summary.setStyleSheet(
+            "color:#888;font-size:12px;background:transparent;padding:0;margin:0;"
+        )
+        right.addWidget(self._summary, 0, Qt.AlignmentFlag.AlignHCenter)
 
         form = QGridLayout()
+        form.setContentsMargins(0, 0, 0, 0)
         form.setHorizontalSpacing(10)
         form.setVerticalSpacing(8)
         form.setColumnMinimumWidth(0, 52)
@@ -132,20 +134,16 @@ class QrcodePage(QWidget):
         self._custom.setPlaceholderText("800")
         self._custom.setText("800")
         style_edit(self._custom)
-        self._custom.setFixedWidth(72)
         self._custom_unit = QLabel("px")
         self._custom_unit.setStyleSheet("color:#888;font-size:13px;background:transparent;")
-        # 自定义尺寸与下拉同一行，非自定义时隐藏，保证下方控件垂直对齐
-        size_row = QWidget()
-        size_row.setStyleSheet("background:transparent;")
-        sr = QHBoxLayout(size_row)
-        sr.setContentsMargins(0, 0, 0, 0)
-        sr.setSpacing(8)
-        sr.addWidget(self._size, 1)
-        sr.addWidget(self._custom, 0)
-        sr.addWidget(self._custom_unit, 0)
-        self._custom.hide()
-        self._custom_unit.hide()
+        self._custom_wrap = QWidget()
+        self._custom_wrap.setStyleSheet("background:transparent;")
+        cw = QHBoxLayout(self._custom_wrap)
+        cw.setContentsMargins(0, 0, 0, 0)
+        cw.setSpacing(8)
+        cw.addWidget(self._custom, 1)
+        cw.addWidget(self._custom_unit, 0)
+        self._custom_wrap.hide()
 
         self._version = QComboBox()
         for v in range(1, 41):
@@ -158,30 +156,33 @@ class QrcodePage(QWidget):
             self._margin.addItem(f"{n}个色块", n)
         self._margin.setStyleSheet(COMBO_QSS)
 
-        for i, (lab, w) in enumerate(
-            (
-                ("容错率", self._level),
-                ("尺寸", size_row),
-                ("码版本", self._version),
-                ("码边距", self._margin),
-            )
-        ):
+        def _add_row(row: int, lab: str, widget: QWidget) -> None:
             form.addWidget(
-                field_label(lab), i, 0,
-                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                field_label(lab),
+                row,
+                0,
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
             )
-            form.addWidget(w, i, 1)
+            form.addWidget(widget, row, 1)
+
+        _add_row(0, "容错率", self._level)
+        _add_row(1, "尺寸", self._size)
+        # 自定义尺寸单独下一行，与上方下拉同列宽对齐
+        form.addWidget(self._custom_wrap, 2, 1)
+        _add_row(3, "码版本", self._version)
+        _add_row(4, "码边距", self._margin)
 
         form_wrap = QWidget()
         form_wrap.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         form_wrap.setFixedWidth(_PREVIEW_SIZE)
         form_wrap.setLayout(form)
-        right.addWidget(form_wrap, 0, Qt.AlignmentFlag.AlignLeft)
+        right.addWidget(form_wrap, 0, Qt.AlignmentFlag.AlignHCenter)
         right.addStretch(1)
         root.addLayout(right, 0)
 
         self._text.generate_requested.connect(self._generate)
         self._preview.download_clicked.connect(self._download)
+        self._preview.copy_clicked.connect(self._copy_image)
         self._size.currentIndexChanged.connect(self._on_size_change)
         self._level.currentIndexChanged.connect(self._on_option_change)
         self._version.currentIndexChanged.connect(self._on_option_change)
@@ -200,9 +201,7 @@ class QrcodePage(QWidget):
         return int(data or 300)
 
     def _on_size_change(self) -> None:
-        custom = self._size.currentData() == "custom"
-        self._custom.setVisible(custom)
-        self._custom_unit.setVisible(custom)
+        self._custom_wrap.setVisible(self._size.currentData() == "custom")
         self._on_option_change()
 
     def _on_option_change(self) -> None:
@@ -269,3 +268,12 @@ class QrcodePage(QWidget):
             set_status(self._status, "已保存", True)
         else:
             set_status(self._status, "保存失败", False)
+
+    def _copy_image(self) -> None:
+        if self._pix is None or self._pix.isNull():
+            set_status(self._status, "暂无图片可复制", False)
+            return
+        from PySide6.QtGui import QGuiApplication
+
+        QGuiApplication.clipboard().setPixmap(self._pix)
+        set_status(self._status, "已复制图片", True)

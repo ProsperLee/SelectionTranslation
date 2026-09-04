@@ -449,7 +449,12 @@ class ScreenshotFullscreenViewer(QWidget):
         )
 
         self.download_btn = IconButton("download.svg", variant="overlay", parent=self)
+        self.download_btn.setToolTip("下载")
         self.download_btn.clicked.connect(self._download)
+
+        self.copy_btn = IconButton("copy.svg", variant="overlay", parent=self)
+        self.copy_btn.setToolTip("复制图片")
+        self.copy_btn.clicked.connect(self._copy_image)
 
         screen = self.screen()
         if screen is not None:
@@ -519,6 +524,7 @@ class ScreenshotFullscreenViewer(QWidget):
             self.rotate_cw_btn,
             self.zoom_out_btn,
             self.zoom_in_btn,
+            self.copy_btn,
             self.download_btn,
         ]
         spacing = WIDGET_MARGIN_H
@@ -538,6 +544,11 @@ class ScreenshotFullscreenViewer(QWidget):
         path, _ = QFileDialog.getSaveFileName(self, "保存截图", "screenshot.png", "PNG (*.png);;JPEG (*.jpg)")
         if path:
             self._canvas.oriented_source().save(path)
+
+    def _copy_image(self):
+        from PySide6.QtGui import QGuiApplication
+
+        QGuiApplication.clipboard().setPixmap(self._canvas.oriented_source())
 
 
 class ScreenshotPanel(QWidget):
@@ -565,13 +576,20 @@ class ScreenshotPanel(QWidget):
         frame_layout.addWidget(self._image_view, 1)
         layout.addWidget(self._image_frame, 1)
 
-        self.fullscreen_btn = IconButton("fullscreen.svg", variant="overlay")
-        self.fullscreen_btn.setParent(self)
-        self.fullscreen_btn.clicked.connect(self._open_fullscreen)
+        self.copy_btn = IconButton("copy.svg", variant="overlay")
+        self.copy_btn.setParent(self)
+        self.copy_btn.setToolTip("复制图片")
+        self.copy_btn.clicked.connect(self._copy_image)
 
         self.download_btn = IconButton("download.svg", variant="overlay")
         self.download_btn.setParent(self)
+        self.download_btn.setToolTip("下载")
         self.download_btn.clicked.connect(self._download)
+
+        self.fullscreen_btn = IconButton("fullscreen.svg", variant="overlay")
+        self.fullscreen_btn.setParent(self)
+        self.fullscreen_btn.setToolTip("全屏")
+        self.fullscreen_btn.clicked.connect(self._open_fullscreen)
         self._refresh_image()
 
     def sizeHint(self):
@@ -593,17 +611,23 @@ class ScreenshotPanel(QWidget):
     def raise_floating_controls(self):
         self._image_frame.lower()
         self._image_view.lower()
-        self.fullscreen_btn.raise_()
+        self.copy_btn.raise_()
         self.download_btn.raise_()
+        self.fullscreen_btn.raise_()
         self._place_floating_controls()
 
     def _place_floating_controls(self):
+        # 从右到左排布，视觉顺序（左→右）：复制、下载、全屏
         top = WIDGET_MARGIN_V
         right = self.width() - WIDGET_MARGIN_H
-
-        self.download_btn.move(right - self.download_btn.width(), top)
-        self.fullscreen_btn.move(
-            right - self.download_btn.width() - 4 - self.fullscreen_btn.width(),
+        gap = 4
+        self.fullscreen_btn.move(right - self.fullscreen_btn.width(), top)
+        self.download_btn.move(
+            self.fullscreen_btn.x() - gap - self.download_btn.width(),
+            top,
+        )
+        self.copy_btn.move(
+            self.download_btn.x() - gap - self.copy_btn.width(),
             top,
         )
 
@@ -641,3 +665,10 @@ class ScreenshotPanel(QWidget):
         path, _ = QFileDialog.getSaveFileName(self, "保存截图", "screenshot.png", "PNG (*.png);;JPEG (*.jpg)")
         if path:
             self._pixmap.save(path)
+
+    def _copy_image(self):
+        if self._pixmap.isNull():
+            return
+        from PySide6.QtGui import QGuiApplication
+
+        QGuiApplication.clipboard().setPixmap(self._pixmap)

@@ -366,6 +366,7 @@ class ImageDropZone(QFrame):
 
 class PreviewBox(QFrame):
     download_clicked = Signal()
+    copy_clicked = Signal()
 
     def __init__(self, empty_text: str = "", *, fixed_size: int | None = None, parent=None):
         super().__init__(parent)
@@ -385,6 +386,11 @@ class PreviewBox(QFrame):
         self._img.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._img.setStyleSheet("border:none;background:transparent;")
         self._img.hide()
+        self._copy = IconButton("copy.svg", size=14, variant="overlay", button_size=28)
+        self._copy.setToolTip("复制图片")
+        self._copy.hide()
+        self._copy.clicked.connect(self.copy_clicked.emit)
+        self._copy.setParent(self)
         self._dl = IconButton("download.svg", size=14, variant="overlay", button_size=28)
         self._dl.setToolTip("下载")
         self._dl.hide()
@@ -404,10 +410,17 @@ class PreviewBox(QFrame):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._dl.move(self.width() - self._dl.width() - 8, 8)
+        self._place_action_btns()
         if self._pix and not self._pix.isNull():
             self._relayout(smooth=False)
             self._smooth_timer.start()
+
+    def _place_action_btns(self) -> None:
+        gap = 6
+        margin = 8
+        y = margin
+        self._dl.move(self.width() - self._dl.width() - margin, y)
+        self._copy.move(self._dl.x() - gap - self._copy.width(), y)
 
     def clear(self) -> None:
         self._smooth_timer.stop()
@@ -415,6 +428,7 @@ class PreviewBox(QFrame):
         self._img.hide()
         self._img.clear()
         self._empty.show()
+        self._copy.hide()
         self._dl.hide()
 
     def set_pixmap(self, pix: QPixmap | None) -> None:
@@ -424,9 +438,15 @@ class PreviewBox(QFrame):
         self._pix = pix
         self._empty.hide()
         self._img.show()
+        self._copy.show()
         self._dl.show()
+        self._place_action_btns()
+        self._copy.raise_()
         self._dl.raise_()
         self._relayout(smooth=True)
+
+    def pixmap(self) -> QPixmap | None:
+        return self._pix
 
     def _relayout(self, *, smooth: bool = True) -> None:
         if not self._pix or self._pix.isNull():
