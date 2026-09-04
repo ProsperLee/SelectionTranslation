@@ -13,7 +13,6 @@ from PySide6.QtWebEngineCore import QWebEngineScript, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QApplication,
-    QFileDialog,
     QHBoxLayout,
     QLabel,
     QSizePolicy,
@@ -24,6 +23,7 @@ from PySide6.QtWidgets import (
 from ui.base_window import FramelessWindow
 from ui.constants import FONT_SIZE, HEADER_BTN_SIZE, ICON_SIZE, WIDGET_MARGIN_H
 from ui.icons import IconButton
+from ui.paths import choose_open_file, choose_save_file
 from ui.text_utils import disable_label_selection
 
 logger = logging.getLogger("file_diff")
@@ -52,6 +52,21 @@ _BRIDGE_JS = """
       window.__fileDiffPost = function (payload) {
         host.receive(typeof payload === "string" ? payload : JSON.stringify(payload));
       };
+      window.__fileDiffPickTextFile = function () {
+        return new Promise(function (resolve) {
+          host.pickTextFile(function (raw) {
+            if (!raw) {
+              resolve(null);
+              return;
+            }
+            try {
+              resolve(JSON.parse(raw));
+            } catch (e) {
+              resolve(null);
+            }
+          });
+        });
+      };
     });
   }
   wire();
@@ -71,7 +86,7 @@ def merge_studio_dir() -> Path:
 
 
 class _FileDiffBridge(QObject):
-    """前端 vscodeApi.postMessage → Qt。"""
+    """前端 vscodeApi.postMessage → Qt；上传走桌面默认对话框。"""
 
     def __init__(self, window: "FileDiffWindow"):
         super().__init__(window)
@@ -85,6 +100,10 @@ class _FileDiffBridge(QObject):
             logger.exception("文件对比消息解析失败")
             return
         self._window._on_webview_message(message)
+
+    @Slot(result=str)
+    def pickTextFile(self) -> str:
+        return self._window._pick_text_file()
 
 
 class FileDiffWindow(FramelessWindow):
@@ -325,13 +344,39 @@ class FileDiffWindow(FramelessWindow):
                 suggested = "未命名.txt"
             self._save_apply_text(text, suggested.strip())
 
+    def _pick_text_file(self) -> str:
+        path = choose_open_file(
+            self,
+            "选择文件",
+            "文本文件 (*.txt *.md *.json *.js *.jsx *.ts *.tsx *.css *.html *.htm "
+            "*.xml *.yml *.yaml *.py *.java *.go *.rs *.c *.cpp *.h *.cs *.php "
+            "*.rb *.sh *.sql *.toml *.ini);;所有文件 (*.*)",
+        )
+        if not path:
+            return ""
+        try:
+            text = Path(path).read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            try:
+                text = Path(path).read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                logger.exception("读取对比文件失败 | path=%s", path)
+                return ""
+        except OSError:
+            logger.exception("读取对比文件失败 | path=%s", path)
+            return ""
+        return json.dumps(
+            {"name": Path(path).name, "text": text},
+            ensure_ascii=False,
+        )
+
     def _save_apply_text(self, text: str, suggested_name: str = "未命名.txt") -> None:
         name = Path(suggested_name.replace("\\", "/")).name or "未命名.txt"
-        path, _ = QFileDialog.getSaveFileName(
+        path = choose_save_file(
             self,
             "保存对比结果",
-            name,
             "所有文件 (*.*);;文本文件 (*.txt)",
+            name,
         )
         if not path:
             return

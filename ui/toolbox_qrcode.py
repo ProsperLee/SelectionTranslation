@@ -8,7 +8,6 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeyEvent, QPixmap
 from PySide6.QtWidgets import (
     QComboBox,
-    QFileDialog,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -19,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from ui.icons import PrimaryButton
+from ui.paths import choose_save_file
 from ui.text_utils import disable_label_selection
 from ui.toolbox_widgets import (
     PreviewBox,
@@ -328,9 +328,7 @@ class QrcodePage(QWidget):
     def _download(self) -> None:
         if self._pix is None or self._pix.isNull():
             return
-        path, _ = QFileDialog.getSaveFileName(
-            self, "保存二维码", "qrcode.png", "PNG (*.png);;All (*.*)"
-        )
+        path = choose_save_file(self, "保存二维码", "PNG (*.png);;All (*.*)", "qrcode.png")
         if not path:
             return
         if self._pix.save(path, "PNG"):

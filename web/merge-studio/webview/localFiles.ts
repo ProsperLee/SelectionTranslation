@@ -8,8 +8,20 @@ import type { DiffInitPayload, MergeInitPayload } from "../src/shared/protocol";
 const TEXT_ACCEPT =
   ".txt,.md,.json,.js,.jsx,.ts,.tsx,.css,.html,.htm,.xml,.yml,.yaml,.py,.java,.go,.rs,.c,.cpp,.h,.cs,.php,.rb,.sh,.sql,.toml,.ini,text/*";
 
+type PickedTextFile = { name: string; text: string };
+
+declare global {
+  interface Window {
+    /** Qt 宿主：默认从桌面打开，避免落到安装目录 */
+    __fileDiffPickTextFile?: () => Promise<PickedTextFile | null>;
+  }
+}
+
 /** 弹出系统文件选择框，读取为 UTF-8 文本。 */
-export function pickTextFile(): Promise<{ name: string; text: string } | null> {
+export function pickTextFile(): Promise<PickedTextFile | null> {
+  if (typeof window.__fileDiffPickTextFile === "function") {
+    return window.__fileDiffPickTextFile();
+  }
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";

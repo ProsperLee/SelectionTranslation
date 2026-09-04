@@ -54,12 +54,13 @@ export const boardToImage = (board: PlaitBoard, options: ToImageOptions = {}) =>
 
 type DrawnixHost = {
   saveBlob: (dataUrl: string, filename: string, mime: string) => void;
+  openFile?: (optsJson: string) => Promise<string>;
 };
 
-const getDrawnixHost = (): DrawnixHost | undefined =>
+export const getDrawnixHost = (): DrawnixHost | undefined =>
   (window as unknown as { __drawnixHost?: DrawnixHost }).__drawnixHost;
 
-const blobToDataUrl = (blob: Blob): Promise<string> =>
+export const blobToDataUrl = (blob: Blob): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));

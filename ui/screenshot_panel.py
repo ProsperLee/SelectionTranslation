@@ -20,7 +20,6 @@ from PySide6.QtGui import (
     QWheelEvent,
 )
 from PySide6.QtWidgets import (
-    QFileDialog,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -33,6 +32,7 @@ from ui.constants import (
     WIDGET_MARGIN_V,
 )
 from ui.icons import IconButton
+from ui.paths import choose_save_file
 from ui.widgets import RoundedPanel
 from ui.win_effects import apply_acrylic_blur
 
@@ -541,7 +541,9 @@ class ScreenshotFullscreenViewer(QWidget):
         self.close_btn.raise_()
 
     def _download(self):
-        path, _ = QFileDialog.getSaveFileName(self, "保存截图", "screenshot.png", "PNG (*.png);;JPEG (*.jpg)")
+        path = choose_save_file(
+            self, "保存截图", "PNG (*.png);;JPEG (*.jpg)", "screenshot.png"
+        )
         if path:
             self._canvas.oriented_source().save(path)
 
@@ -662,7 +664,9 @@ class ScreenshotPanel(QWidget):
         self._fullscreen_viewer = None
 
     def _download(self):
-        path, _ = QFileDialog.getSaveFileName(self, "保存截图", "screenshot.png", "PNG (*.png);;JPEG (*.jpg)")
+        path = choose_save_file(
+            self, "保存截图", "PNG (*.png);;JPEG (*.jpg)", "screenshot.png"
+        )
         if path:
             self._pixmap.save(path)
 

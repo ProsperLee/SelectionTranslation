@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import base64
 import functools
+import json
 import logging
+import mimetypes
 import socket
 import sys
 import threading
@@ -17,7 +19,6 @@ from PySide6.QtWebEngineCore import QWebEngineScript, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QApplication,
-    QFileDialog,
     QHBoxLayout,
     QLabel,
     QSizePolicy,
@@ -28,6 +29,7 @@ from PySide6.QtWidgets import (
 from ui.base_window import FramelessWindow
 from ui.constants import FONT_SIZE, HEADER_BTN_SIZE, ICON_SIZE, WIDGET_MARGIN_H
 from ui.icons import IconButton
+from ui.paths import choose_open_file, choose_save_file
 from ui.text_utils import disable_label_selection
 
 logger = logging.getLogger("drawnix")
@@ -57,6 +59,13 @@ _BRIDGE_JS = """
       window.__drawnixHost = {
         saveBlob: function (dataUrl, filename, mime) {
           host.saveBlob(dataUrl, filename, mime);
+        },
+        openFile: function (optsJson) {
+          return new Promise(function (resolve) {
+            host.openFile(optsJson || "{}", function (raw) {
+              resolve(raw || "");
+            });
+          });
         }
       };
     });
@@ -67,7 +76,7 @@ _BRIDGE_JS = """
 
 
 class _DrawnixBridge(QObject):
-    """前端导出图片 → Qt 保存对话框。"""
+    """前端打开/导出 → Qt 对话框（默认桌面）。"""
 
     def __init__(self, window: "DrawnixWindow"):
         super().__init__(window)
@@ -76,6 +85,10 @@ class _DrawnixBridge(QObject):
     @Slot(str, str, str)
     def saveBlob(self, data_url: str, filename: str, mime_type: str) -> None:
         self._window._save_blob(data_url, filename, mime_type)
+
+    @Slot(str, result=str)
+    def openFile(self, opts_json: str) -> str:
+        return self._window._open_file(opts_json)
 
 
 def drawnix_dir() -> Path:
@@ -333,10 +346,14 @@ class DrawnixWindow(FramelessWindow):
             filter_str = "PNG 图片 (*.png);;所有文件 (*.*)"
         elif ext == ".svg":
             filter_str = "SVG 图片 (*.svg);;所有文件 (*.*)"
+        elif ext == ".drawnix":
+            filter_str = "Drawnix (*.drawnix);;所有文件 (*.*)"
+        elif ext == ".json":
+            filter_str = "JSON (*.json);;所有文件 (*.*)"
         else:
             filter_str = "所有文件 (*.*)"
 
-        path, _ = QFileDialog.getSaveFileName(self, "导出图片", name, filter_str)
+        path = choose_save_file(self, "导出文件", filter_str, name)
         if not path:
             return
         try:
@@ -349,6 +366,64 @@ class DrawnixWindow(FramelessWindow):
             )
         except Exception:
             logger.exception("思维导图导出失败 | path=%s", path)
+
+    def _open_file(self, opts_json: str) -> str:
+        try:
+            opts = json.loads(opts_json) if opts_json else {}
+        except Exception:
+            opts = {}
+        if not isinstance(opts, dict):
+            opts = {}
+
+        description = opts.get("description") or "打开文件"
+        if not isinstance(description, str) or not description.strip():
+            description = "打开文件"
+        extensions = opts.get("extensions") or []
+        if not isinstance(extensions, list):
+            extensions = []
+
+        patterns: list[str] = []
+        for ext in extensions:
+            if not isinstance(ext, str) or not ext.strip():
+                continue
+            e = ext.lstrip(".").lower()
+            patterns.append(f"*.{e}")
+            if e == "jpg":
+                patterns.append("*.jpeg")
+        if patterns:
+            uniq = " ".join(dict.fromkeys(patterns))
+            filter_str = f"{description} ({uniq});;所有文件 (*.*)"
+        else:
+            filter_str = (
+                f"{description} (*.drawnix *.json);;所有文件 (*.*)"
+            )
+
+        path = choose_open_file(self, description, filter_str)
+        if not path:
+            return ""
+        try:
+            data = Path(path).read_bytes()
+        except OSError:
+            logger.exception("思维导图打开文件失败 | path=%s", path)
+            return ""
+
+        mime, _ = mimetypes.guess_type(path)
+        if not mime:
+            suffix = Path(path).suffix.lower()
+            if suffix == ".drawnix":
+                mime = "application/vnd.drawnix+json"
+            elif suffix in {".svg"}:
+                mime = "image/svg+xml"
+            else:
+                mime = "application/octet-stream"
+        return json.dumps(
+            {
+                "name": Path(path).name,
+                "mime": mime,
+                "base64": base64.b64encode(data).decode("ascii"),
+            },
+            ensure_ascii=False,
+        )
 
     def _on_load_finished(self, ok: bool) -> None:
         if not ok:

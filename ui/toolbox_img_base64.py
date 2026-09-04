@@ -9,7 +9,6 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QGuiApplication, QPixmap
 from PySide6.QtWidgets import (
-    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -22,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from ui.icons import IconButton
+from ui.paths import choose_open_file, choose_save_file
 from ui.text_utils import disable_label_selection
 from ui.toolbox_widgets import (
     EDGE_SCROLLBAR_QSS,
@@ -238,10 +238,9 @@ class ImgBase64Page(QWidget):
         return self._drop.try_clipboard_image()
 
     def _pick_file(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(
+        path = choose_open_file(
             self,
             "选择图片",
-            "",
             "Images (*.png *.jpg *.jpeg *.gif *.webp *.bmp *.svg);;All (*.*)",
         )
         if path:
@@ -357,8 +356,8 @@ class ImgBase64Page(QWidget):
             return
         mime, b64 = m.group(1), m.group(2)
         ext = (mime.split("/")[-1] or "png").replace("jpeg", "jpg")
-        path, _ = QFileDialog.getSaveFileName(
-            self, "保存图片", f"image.{ext}", f"Image (*.{ext});;All (*.*)"
+        path = choose_save_file(
+            self, "保存图片", f"Image (*.{ext});;All (*.*)", f"image.{ext}"
         )
         if not path:
             return
