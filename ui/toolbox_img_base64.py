@@ -64,16 +64,18 @@ class ImgBase64Page(QWidget):
         self._build()
 
     def _build(self) -> None:
-        scroll = QScrollArea(self)
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet(f"QScrollArea{{background:transparent;border:none;}}{EDGE_SCROLLBAR_QSS}")
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._scroll = QScrollArea(self)
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self._scroll.setStyleSheet(
+            f"QScrollArea{{background:transparent;border:none;}}{EDGE_SCROLLBAR_QSS}"
+        )
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         inner = QWidget()
-        scroll.setWidget(inner)
+        self._scroll.setWidget(inner)
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
-        root.addWidget(scroll)
+        root.addWidget(self._scroll)
         lay = QVBoxLayout(inner)
         lay.setContentsMargins(0, 0, 14, 0)  # 内容与滚动条留距
         lay.setSpacing(12)
@@ -256,16 +258,24 @@ class ImgBase64Page(QWidget):
         return f"data:image/png;base64,{cleaned}"
 
     def _run_decode(self) -> None:
+        edit = self._decode_input
+        vbar = edit.verticalScrollBar()
+        hbar = edit.horizontalScrollBar()
+        outer = self._scroll.verticalScrollBar()
+        vpos, hpos, opos = vbar.value(), hbar.value(), outer.value()
+
         data_url = self._to_data_url()
         if not data_url:
             self._decode_data_url = ""
             self._preview.clear()
             set_status(self._dec_status, "")
+            self._restore_decode_scroll(vpos, hpos, opos)
             return
         m = re.match(r"^data:([^;]+);base64,(.+)$", data_url, re.DOTALL)
         if not m:
             self._preview.clear()
             set_status(self._dec_status, "格式无效", False)
+            self._restore_decode_scroll(vpos, hpos, opos)
             return
         mime, b64 = m.group(1), re.sub(r"\s+", "", m.group(2))
         try:
@@ -273,15 +283,33 @@ class ImgBase64Page(QWidget):
         except Exception:
             self._preview.clear()
             set_status(self._dec_status, "Base64 解码失败", False)
+            self._restore_decode_scroll(vpos, hpos, opos)
             return
         pix = QPixmap()
         if not pix.loadFromData(data):
             self._preview.clear()
             set_status(self._dec_status, "图片无效", False)
+            self._restore_decode_scroll(vpos, hpos, opos)
             return
         self._decode_data_url = f"data:{mime};base64,{b64}"
         self._preview.set_pixmap(pix)
         set_status(self._dec_status, "预览就绪", True)
+        self._restore_decode_scroll(vpos, hpos, opos)
+
+    def _restore_decode_scroll(self, vpos: int, hpos: int, opos: int) -> None:
+        """解码失败/成功后保持输入区与页面滚动位置，避免跳回开头。"""
+        edit = self._decode_input
+        vbar = edit.verticalScrollBar()
+        hbar = edit.horizontalScrollBar()
+        outer = self._scroll.verticalScrollBar()
+
+        def _apply() -> None:
+            vbar.setValue(vpos)
+            hbar.setValue(hpos)
+            outer.setValue(opos)
+
+        _apply()
+        QTimer.singleShot(0, _apply)
 
     def _download_decode(self) -> None:
         if not self._decode_data_url:

@@ -410,6 +410,16 @@ class ResizeHandleWidget(QWidget):
         self._dragging = False
         self._start_x = 0
         self._start_y = 0
+        self._pending_dx = 0
+        self._pending_dy = 0
+        # 合并高频 mousemove，减轻布局/掩码/图片缩放压力
+        self._emit_timer = QTimer(self)
+        self._emit_timer.setSingleShot(True)
+        self._emit_timer.setInterval(16)
+        self._emit_timer.timeout.connect(self._flush_resize)
+
+    def is_dragging(self) -> bool:
+        return self._dragging
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -425,6 +435,8 @@ class ResizeHandleWidget(QWidget):
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
             self._dragging = True
+            self._pending_dx = 0
+            self._pending_dy = 0
             self._start_x = int(event.globalPosition().x())
             self._start_y = int(event.globalPosition().y())
             self.grabMouse()
@@ -439,16 +451,38 @@ class ResizeHandleWidget(QWidget):
         if delta_x or delta_y:
             self._start_x = int(event.globalPosition().x())
             self._start_y = int(event.globalPosition().y())
-            self.resized.emit(delta_x, delta_y)
+            self._pending_dx += delta_x
+            self._pending_dy += delta_y
+            if not self._emit_timer.isActive():
+                self._emit_timer.start()
         event.accept()
 
-    def mouseReleaseEvent(self, event: QMouseEvent):
-        if self._dragging and event.button() == Qt.MouseButton.LeftButton:
-            self._dragging = False
-            self.releaseMouse()
-            self.update()
+    def _flush_resize(self) -> None:
+        dx, dy = self._pending_dx, self._pending_dy
+        self._pending_dx = 0
+        self._pending_dy = 0
+        if dx or dy:
+            self.resized.emit(dx, dy)
+
+    def _end_drag(self) -> None:
+        self._emit_timer.stop()
+        self._flush_resize()
+        was = self._dragging
+        self._dragging = False
+        self.releaseMouse()
+        self.update()
+        if was:
             self.drag_finished.emit()
+
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._end_drag()
             event.accept()
+
+    def hideEvent(self, event):
+        if self._dragging:
+            self._end_drag()
+        super().hideEvent(event)
 
 
 class MarkCheckBox(QPushButton):

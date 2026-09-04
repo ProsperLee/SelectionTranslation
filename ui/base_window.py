@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication, QFrame, QVBoxLayout, QWidget
 
 from ui.constants import BORDER_RADIUS, HEADER_HEIGHT, ICON_SIZE
 from ui.win_effects import set_window_topmost
-from ui.widgets import ResizeHandleWidget
+from ui.widgets import ResizeHandleWidget, apply_rounded_mask
 
 
 class _WindowBorderOverlay(QWidget):
@@ -98,9 +98,22 @@ class FramelessWindow(QWidget):
     def enable_corner_resize(self, on_resize):
         self._resize_handle = ResizeHandleWidget(self)
         self._resize_handle.resized.connect(on_resize)
-        self._resize_handle.drag_finished.connect(self._raise_floating_controls)
+        self._resize_handle.drag_finished.connect(self._on_corner_resize_finished)
         self._place_resize_handle()
         self._raise_floating_controls()
+
+    def _on_corner_resize_finished(self) -> None:
+        self._apply_window_mask()
+        self._raise_floating_controls()
+
+    def _apply_window_mask(self) -> None:
+        """裁剪圆角，避免不透明子控件把四角盖成直角。"""
+        if self.width() <= 0 or self.height() <= 0:
+            return
+        if self.isMaximized() or self.isFullScreen():
+            self.clearMask()
+            return
+        apply_rounded_mask(self)
 
     def _place_resize_handle(self):
         if self._resize_handle is None:
@@ -122,12 +135,21 @@ class FramelessWindow(QWidget):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        dragging = self._resize_handle is not None and self._resize_handle.is_dragging()
+        # 放大时必须同步更新掩码，否则新区域会被旧 mask 裁掉
+        self._apply_window_mask()
         self._place_border_overlay()
         self._place_resize_handle()
-        self._raise_floating_controls()
+        if not dragging:
+            self._raise_floating_controls()
+        else:
+            # 拖拽中只保证描边/手柄在上层，避免频繁 raise 干扰侧栏点击
+            self._border_overlay.raise_()
+            self._resize_handle.raise_()
 
     def showEvent(self, event):
         super().showEvent(event)
+        self._apply_window_mask()
         self._place_border_overlay()
         self._raise_floating_controls()
 

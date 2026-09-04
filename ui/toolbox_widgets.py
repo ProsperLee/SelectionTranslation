@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QByteArray, QBuffer, QSize, Qt, Signal
+from PySide6.QtCore import QByteArray, QBuffer, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QDragEnterEvent, QDropEvent, QImage, QMouseEvent, QPixmap
 from PySide6.QtWidgets import (
     QFrame,
@@ -264,6 +264,10 @@ class ImageDropZone(QFrame):
         lay.addWidget(self._sub)
         lay.addWidget(self._preview)
         self._pix: QPixmap | None = None
+        self._smooth_timer = QTimer(self)
+        self._smooth_timer.setSingleShot(True)
+        self._smooth_timer.setInterval(80)
+        self._smooth_timer.timeout.connect(lambda: self._relayout(smooth=True))
 
     def _set_border(self, active: bool) -> None:
         color = "#088fff" if active else "#444"
@@ -274,6 +278,7 @@ class ImageDropZone(QFrame):
     def set_preview(self, pix: QPixmap | None) -> None:
         self._pix = pix
         if pix is None or pix.isNull():
+            self._smooth_timer.stop()
             self._preview.hide()
             self._hint.show()
             self._sub.show()
@@ -281,20 +286,27 @@ class ImageDropZone(QFrame):
         self._hint.hide()
         self._sub.hide()
         self._preview.show()
-        self._relayout()
+        self._relayout(smooth=True)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._relayout()
+        if self._pix and not self._pix.isNull():
+            self._relayout(smooth=False)
+            self._smooth_timer.start()
 
-    def _relayout(self) -> None:
+    def _relayout(self, *, smooth: bool = True) -> None:
         if not self._pix or self._pix.isNull():
             return
+        mode = (
+            Qt.TransformationMode.SmoothTransformation
+            if smooth
+            else Qt.TransformationMode.FastTransformation
+        )
         scaled = self._pix.scaled(
             max(40, self.width() - 24),
             max(40, self.height() - 24),
             Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
+            mode,
         )
         self._preview.setPixmap(scaled)
 
@@ -385,13 +397,20 @@ class PreviewBox(QFrame):
         lay.addWidget(self._img, 0, Qt.AlignmentFlag.AlignCenter)
         lay.addStretch(1)
         self._pix: QPixmap | None = None
+        self._smooth_timer = QTimer(self)
+        self._smooth_timer.setSingleShot(True)
+        self._smooth_timer.setInterval(80)
+        self._smooth_timer.timeout.connect(lambda: self._relayout(smooth=True))
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._dl.move(self.width() - self._dl.width() - 8, 8)
-        self._relayout()
+        if self._pix and not self._pix.isNull():
+            self._relayout(smooth=False)
+            self._smooth_timer.start()
 
     def clear(self) -> None:
+        self._smooth_timer.stop()
         self._pix = None
         self._img.hide()
         self._img.clear()
@@ -407,15 +426,20 @@ class PreviewBox(QFrame):
         self._img.show()
         self._dl.show()
         self._dl.raise_()
-        self._relayout()
+        self._relayout(smooth=True)
 
-    def _relayout(self) -> None:
+    def _relayout(self, *, smooth: bool = True) -> None:
         if not self._pix or self._pix.isNull():
             return
+        mode = (
+            Qt.TransformationMode.SmoothTransformation
+            if smooth
+            else Qt.TransformationMode.FastTransformation
+        )
         scaled = self._pix.scaled(
             max(40, self.width() - 24),
             max(40, self.height() - 24),
             Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
+            mode,
         )
         self._img.setPixmap(scaled)
