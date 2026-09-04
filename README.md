@@ -2,7 +2,7 @@
 
 Windows 桌面效率工具：**划词翻译**、**OCR 翻译**、**屏幕吸色**、**桌面便签**、**文件对比**、**思维导图**、**工具箱**。托盘常驻，翻译引擎免密钥，支持混合 DPI 多显示器。
 
-当前版本：**1.3.1**（见 `packaging/version.txt`）
+当前版本：**1.3.2**（见 `packaging/version.txt`）
 
 ---
 
@@ -10,7 +10,7 @@ Windows 桌面效率工具：**划词翻译**、**OCR 翻译**、**屏幕吸色*
 
 ### 安装包（推荐）
 
-运行 `release\SelectionTranslation-Setup-1.3.1.exe`（需自行 [`打包`](#打包) 生成）。
+运行 `release\SelectionTranslation-Setup-1.3.2.exe`（需自行 [`打包`](#打包) 生成）。
 
 - 默认安装到 `%LOCALAPPDATA%\SelectionTranslation`，无需管理员
 - 升级安装保留已有 `settings_config.json`
@@ -157,7 +157,7 @@ SelectionTranslation/
 │
 └── release/                      # 打包产出（git 忽略）
     ├── app/SelectionTranslation/
-    └── SelectionTranslation-Setup-1.3.1.exe
+    └── SelectionTranslation-Setup-1.3.2.exe
 ```
 
 ---
@@ -178,7 +178,7 @@ winget install --id JRSoftware.InnoSetup -e
 .\packaging\build.ps1
 
 # 指定版本
-.\packaging\build.ps1 -Version 1.3.1
+.\packaging\build.ps1 -Version 1.3.2
 
 # 仅生成可运行目录，不编译安装包
 .\packaging\build.ps1 -SkipInstaller
@@ -190,7 +190,7 @@ winget install --id JRSoftware.InnoSetup -e
 | 产出 | 说明 |
 | --- | --- |
 | `release\app\SelectionTranslation\SelectionTranslation.exe` | 免安装目录 |
-| `release\SelectionTranslation-Setup-1.3.1.exe` | 安装包 |
+| `release\SelectionTranslation-Setup-1.3.2.exe` | 安装包 |
 
 安装包特性：默认 `%LOCALAPPDATA%\SelectionTranslation`、可选桌面快捷方式与开机自启；**首次安装**写入默认配置，升级不覆盖用户配置。
 
