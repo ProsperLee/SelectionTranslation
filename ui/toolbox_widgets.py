@@ -371,6 +371,8 @@ class ImageDropZone(QFrame):
 class PreviewBox(QFrame):
     download_clicked = Signal()
     copy_clicked = Signal()
+    # 顶部留给复制/下载按钮，避免盖住图片/二维码
+    _ACTION_TOP = 40
 
     def __init__(self, empty_text: str = "", *, fixed_size: int | None = None, parent=None):
         super().__init__(parent)
@@ -400,12 +402,12 @@ class PreviewBox(QFrame):
         self._dl.hide()
         self._dl.clicked.connect(self.download_clicked.emit)
         self._dl.setParent(self)
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(12, 12, 12, 12)
-        lay.addStretch(1)
-        lay.addWidget(self._empty, 0, Qt.AlignmentFlag.AlignCenter)
-        lay.addWidget(self._img, 0, Qt.AlignmentFlag.AlignCenter)
-        lay.addStretch(1)
+        self._lay = QVBoxLayout(self)
+        self._lay.setContentsMargins(12, 12, 12, 12)
+        self._lay.addStretch(1)
+        self._lay.addWidget(self._empty, 0, Qt.AlignmentFlag.AlignCenter)
+        self._lay.addWidget(self._img, 0, Qt.AlignmentFlag.AlignCenter)
+        self._lay.addStretch(1)
         self._pix: QPixmap | None = None
         self._smooth_timer = QTimer(self)
         self._smooth_timer.setSingleShot(True)
@@ -426,6 +428,10 @@ class PreviewBox(QFrame):
         self._dl.move(self.width() - self._dl.width() - margin, y)
         self._copy.move(self._dl.x() - gap - self._copy.width(), y)
 
+    def _set_content_margins(self, *, with_actions: bool) -> None:
+        top = self._ACTION_TOP if with_actions else 12
+        self._lay.setContentsMargins(12, top, 12, 12)
+
     def clear(self) -> None:
         self._smooth_timer.stop()
         self._pix = None
@@ -434,6 +440,7 @@ class PreviewBox(QFrame):
         self._empty.show()
         self._copy.hide()
         self._dl.hide()
+        self._set_content_margins(with_actions=False)
 
     def set_pixmap(self, pix: QPixmap | None) -> None:
         if pix is None or pix.isNull():
@@ -444,6 +451,7 @@ class PreviewBox(QFrame):
         self._img.show()
         self._copy.show()
         self._dl.show()
+        self._set_content_margins(with_actions=True)
         self._place_action_btns()
         self._copy.raise_()
         self._dl.raise_()
@@ -460,9 +468,12 @@ class PreviewBox(QFrame):
             if smooth
             else Qt.TransformationMode.FastTransformation
         )
+        m = self._lay.contentsMargins()
+        avail_w = max(40, self.width() - m.left() - m.right())
+        avail_h = max(40, self.height() - m.top() - m.bottom())
         scaled = self._pix.scaled(
-            max(40, self.width() - 24),
-            max(40, self.height() - 24),
+            avail_w,
+            avail_h,
             Qt.AspectRatioMode.KeepAspectRatio,
             mode,
         )
