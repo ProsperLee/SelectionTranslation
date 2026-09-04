@@ -113,7 +113,7 @@ class RegexPage(QWidget):
         self._text = QPlainTextEdit()
         self._text.setPlaceholderText("输入或粘贴要测试的文本")
         style_edit(self._text)
-        self._text.setMinimumHeight(120)
+        self._text.setFixedHeight(80)
         root.addWidget(self._text)
 
         res_head = QHBoxLayout()
@@ -129,19 +129,19 @@ class RegexPage(QWidget):
         self._highlight.setWordWrap(True)
         self._highlight.setTextFormat(Qt.TextFormat.RichText)
         self._highlight.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        self._highlight.setMinimumHeight(72)
+        self._highlight.setFixedHeight(80)
         self._apply_highlight_style(empty=True)
         root.addWidget(self._highlight)
 
         root.addWidget(field_label("匹配详情"))
         self._detail_empty = QLabel("暂无匹配详情")
-        self._detail_empty.setStyleSheet("color:#666;font-size:13px;background:transparent;")
+        self._detail_empty.setStyleSheet("color:#666;font-size:12px;background:transparent;")
         root.addWidget(self._detail_empty)
 
         self._detail_host = QWidget()
         self._detail_lay = QVBoxLayout(self._detail_host)
         self._detail_lay.setContentsMargins(0, 0, 0, 0)
-        self._detail_lay.setSpacing(6)
+        self._detail_lay.setSpacing(4)
         root.addWidget(self._detail_host)
         root.addStretch(1)
 
@@ -156,7 +156,7 @@ class RegexPage(QWidget):
                 background:#292929; border:1px solid #333333; border-radius:6px;
                 color:{color}; font-size:13px;
                 font-family: Consolas, "Courier New", monospace;
-                padding:12px 14px; min-height:72px;
+                padding:12px 14px;
             }}
             """
         )
@@ -255,16 +255,21 @@ class RegexPage(QWidget):
                 "QFrame{background:#1a1a1a;border:1px solid #333333;border-radius:6px;}"
             )
             hl = QHBoxLayout(row)
-            hl.setContentsMargins(12, 8, 12, 8)
+            hl.setContentsMargins(10, 4, 10, 4)
+            hl.setSpacing(8)
             idx = QLabel(f"#{i + 1}")
-            idx.setStyleSheet("color:#888;font-family:Consolas;background:transparent;")
-            idx.setFixedWidth(40)
+            idx.setStyleSheet(
+                "color:#888;font-size:12px;font-family:Consolas;background:transparent;"
+            )
+            idx.setFixedWidth(32)
             val = QLabel(f'"{html.escape(m.group(0))}"')
             val.setTextFormat(Qt.TextFormat.RichText)
-            val.setStyleSheet("color:#088fff;font-family:Consolas;background:transparent;")
+            val.setStyleSheet(
+                "color:#088fff;font-size:12px;font-family:Consolas;background:transparent;"
+            )
             val.setWordWrap(True)
             pos = QLabel(f"位置: {m.start()}")
-            pos.setStyleSheet("color:#888;font-size:12px;background:transparent;")
+            pos.setStyleSheet("color:#888;font-size:11px;background:transparent;")
             hl.addWidget(idx)
             hl.addWidget(val, 1)
             hl.addWidget(pos)

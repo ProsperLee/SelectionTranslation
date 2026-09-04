@@ -151,6 +151,10 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 def style_edit(widget: QLineEdit | QPlainTextEdit | QTextEdit) -> None:
     widget.setStyleSheet(EDIT_QSS + EDGE_SCROLLBAR_QSS)
     install_placeholder_ime_fix(widget)
+    if isinstance(widget, (QPlainTextEdit, QTextEdit)):
+        # QSS 边框易被内部 viewport 盖住，内缩 1px 露出完整描边（含 focus）
+        widget.setFrameShape(QFrame.Shape.NoFrame)
+        widget.setViewportMargins(1, 1, 1, 1)
 
 
 def field_label(text: str) -> QLabel:

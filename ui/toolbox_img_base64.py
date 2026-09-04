@@ -54,7 +54,7 @@ def _guess_mime(path: str = "", data: bytes | None = None) -> str:
 
 class ImgBase64Page(QWidget):
     # 上传框 / 解码输入 / 预览 统一尺寸，保证上下网格对齐
-    _IO_H = 168
+    _IO_H = 165
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -127,7 +127,8 @@ class ImgBase64Page(QWidget):
         enc_right.setStyleSheet("background:transparent;")
         self._size_io(enc_right)
         er = QVBoxLayout(enc_right)
-        er.setContentsMargins(0, 0, 0, 0)
+        # 底部留 1px，避免末行输入框 focus 边框贴底被裁切
+        er.setContentsMargins(0, 0, 0, 1)
         er.setSpacing(8)
         self._out_pure = QTextEdit()
         self._out_pure.setReadOnly(True)
@@ -156,40 +157,31 @@ class ImgBase64Page(QWidget):
         grid.addWidget(self._drop, 2, 0)
         grid.addWidget(enc_right, 2, 1)
 
-        # —— 解码区标题 + 类型 ——
+        # —— 解码区标题：类型选项放标题右侧（去掉「输入类型」文案）——
         dec_head = QWidget()
         dh = QHBoxLayout(dec_head)
         dh.setContentsMargins(0, 8, 0, 0)
-        dh.setSpacing(8)
+        dh.setSpacing(12)
         t2 = QLabel("解码 → 图片")
         disable_label_selection(t2)
         t2.setStyleSheet(
             "color:#e8e8e8;font-size:13px;font-weight:500;background:transparent;"
         )
-        self._dec_status = status_label()
-        dh.addWidget(t2)
-        dh.addWidget(self._dec_status, 1)
-        grid.addWidget(dec_head, 3, 0, 1, 2)
-
-        type_row = QWidget()
-        type_row.setStyleSheet("background:transparent;")
-        tr = QHBoxLayout(type_row)
-        tr.setContentsMargins(0, 0, 0, 0)
-        tr.setSpacing(16)
-        tr.addWidget(field_label("输入类型"))
+        dh.addWidget(t2, 0, Qt.AlignmentFlag.AlignVCenter)
         pure_wrap, self._type_pure = mark_check_option("Base64 编码", True)
         data_wrap, self._type_data = mark_check_option("Data URL", False)
-        tr.addWidget(pure_wrap)
-        tr.addWidget(data_wrap)
-        tr.addStretch(1)
-        grid.addWidget(type_row, 4, 0, 1, 2)
+        dh.addWidget(pure_wrap, 0, Qt.AlignmentFlag.AlignVCenter)
+        dh.addWidget(data_wrap, 0, Qt.AlignmentFlag.AlignVCenter)
+        self._dec_status = status_label()
+        dh.addWidget(self._dec_status, 1)
+        grid.addWidget(dec_head, 3, 0, 1, 2)
 
         self._type_pure.toggled.connect(self._on_pure_toggled)
         self._type_data.toggled.connect(self._on_data_toggled)
 
         self._in_label = field_label("Base64 编码（纯数据）")
-        grid.addWidget(self._in_label, 5, 0)
-        grid.addWidget(field_label("预览"), 5, 1)
+        grid.addWidget(self._in_label, 4, 0)
+        grid.addWidget(field_label("预览"), 4, 1)
 
         self._decode_input = QTextEdit()
         self._decode_input.setPlaceholderText("iVBORw0KGgoAAAANSUhEUg...")
@@ -199,8 +191,8 @@ class ImgBase64Page(QWidget):
         self._preview = PreviewBox("输入内容后自动预览")
         self._size_io(self._preview)
 
-        grid.addWidget(self._decode_input, 6, 0)
-        grid.addWidget(self._preview, 6, 1)
+        grid.addWidget(self._decode_input, 5, 0)
+        grid.addWidget(self._preview, 5, 1)
 
         page.addLayout(grid)
         page.addStretch(1)

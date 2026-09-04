@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QGuiApplication, QKeySequence, QShortcut
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -45,6 +45,10 @@ _TOOLS = (
     ("regex", "regex.svg", "正则表达式"),
 )
 
+# 固定窗口尺寸（与原先最小尺寸一致，禁止缩放）
+_FIXED_W = 900
+_FIXED_H = 560
+
 
 class ToolboxWindow(FramelessWindow):
     """无边框工具箱：左侧菜单 + 右侧工具页。"""
@@ -57,22 +61,10 @@ class ToolboxWindow(FramelessWindow):
         app = QApplication.instance()
         if app is not None and "QToolTip {" not in (app.styleSheet() or ""):
             app.setStyleSheet((app.styleSheet() or "") + _TOOLTIP_QSS)
-        self.setMinimumSize(900, 560)
-        self.resize(1100, 700)
-        self._restore_geometry = None
-        self._workarea_maximized = False
+        self.setFixedSize(_FIXED_W, _FIXED_H)
         self._menu_btns: list[SideMenuButton] = []
         self._build_ui()
-        self.enable_corner_resize(self._on_resize)
         self._switch("img-base64")
-
-    def _on_resize(self, dx: int, dy: int) -> None:
-        if self._workarea_maximized or self.isFullScreen() or self.isMaximized():
-            return
-        self.resize(
-            max(self.minimumWidth(), self.width() + dx),
-            max(self.minimumHeight(), self.height() + dy),
-        )
 
     def _build_ui(self) -> None:
         header = QHBoxLayout()
@@ -93,10 +85,6 @@ class ToolboxWindow(FramelessWindow):
             "minus.svg", size=ICON_SIZE, variant="light", button_size=HEADER_BTN_SIZE
         )
         self.minimize_btn.setToolTip("最小化")
-        self.fullscreen_btn = IconButton(
-            "restore.svg", size=ICON_SIZE, variant="light", button_size=HEADER_BTN_SIZE
-        )
-        self.fullscreen_btn.setToolTip("全屏")
         self.close_btn = IconButton(
             "close.svg", size=ICON_SIZE, variant="light", button_size=HEADER_BTN_SIZE
         )
@@ -109,7 +97,6 @@ class ToolboxWindow(FramelessWindow):
         right_lay.setSpacing(4)
         right_lay.addStretch(1)
         right_lay.addWidget(self.minimize_btn, 0, Qt.AlignmentFlag.AlignVCenter)
-        right_lay.addWidget(self.fullscreen_btn, 0, Qt.AlignmentFlag.AlignVCenter)
         right_lay.addWidget(self.close_btn, 0, Qt.AlignmentFlag.AlignVCenter)
 
         header.addWidget(left, 1)
@@ -181,7 +168,6 @@ class ToolboxWindow(FramelessWindow):
         self.body.addWidget(body)
 
         self.minimize_btn.clicked.connect(self.showMinimized)
-        self.fullscreen_btn.clicked.connect(self._toggle_fullscreen)
         self.close_btn.clicked.connect(self.close)
 
         # 全局粘贴图片到编码页
@@ -203,20 +189,3 @@ class ToolboxWindow(FramelessWindow):
     def _on_paste(self) -> None:
         if self._stack.currentWidget() is self._page_img:
             self._page_img.try_paste_image()
-
-    def _toggle_fullscreen(self) -> None:
-        if self._workarea_maximized:
-            self._workarea_maximized = False
-            if self._restore_geometry is not None:
-                self.setGeometry(self._restore_geometry)
-            self.fullscreen_btn.set_icon_name("restore.svg")
-            self.fullscreen_btn.setToolTip("全屏")
-            return
-        screen = self.screen() or QGuiApplication.primaryScreen()
-        if screen is None:
-            return
-        self._restore_geometry = self.geometry()
-        self.setGeometry(screen.availableGeometry())
-        self._workarea_maximized = True
-        self.fullscreen_btn.set_icon_name("maximize.svg")
-        self.fullscreen_btn.setToolTip("退出全屏")
