@@ -43,6 +43,7 @@ from ui.ocr_window import OCRWindow
 from ui.screen_coords import cursor_physical_pos, place_window_near_physical
 from ui.settings_window import SettingsWindow
 from ui.sticky_note_window import StickyNoteWindow
+from ui.toolbox_window import ToolboxWindow
 from ui.translation_window import TranslationWindow
 from ui.widgets import show_screen_center_toast
 
@@ -78,6 +79,7 @@ class SelectionTranslationApp(QObject):
         self._log_window: LogWindow | None = None
         self._file_diff_window: FileDiffWindow | None = None
         self._drawnix_window: DrawnixWindow | None = None
+        self._toolbox_window: ToolboxWindow | None = None
         self._about_window: AboutWindow | None = None
         self._sticky_notes: list[StickyNoteWindow] = []
         self._ocr_task: OcrTask | None = None
@@ -119,6 +121,8 @@ class SelectionTranslationApp(QObject):
         file_diff.triggered.connect(self.open_file_diff)
         drawnix = QAction("思维导图", menu)
         drawnix.triggered.connect(self.open_drawnix)
+        toolbox = QAction("工具箱", menu)
+        toolbox.triggered.connect(self.open_toolbox)
         about_action = QAction("关于", menu)
         about_action.triggered.connect(self.open_about)
         quit_action = QAction("退出", menu)
@@ -127,6 +131,7 @@ class SelectionTranslationApp(QObject):
         menu.addSeparator()
         menu.addAction(file_diff)
         menu.addAction(drawnix)
+        menu.addAction(toolbox)
         menu.addAction(show_notes)
         menu.addSeparator()
         menu.addAction(view_logs)
@@ -299,6 +304,22 @@ class SelectionTranslationApp(QObject):
     def _on_drawnix_window_destroyed(self, window) -> None:
         if self._drawnix_window is window or not _qt_alive(self._drawnix_window):
             self._drawnix_window = None
+
+    def open_toolbox(self):
+        if self._toolbox_window is None or not _qt_alive(self._toolbox_window):
+            window = ToolboxWindow()
+            window.destroyed.connect(
+                lambda *_args, w=window: self._on_toolbox_window_destroyed(w)
+            )
+            self._toolbox_window = window
+        self._toolbox_window.show()
+        self._toolbox_window.raise_()
+        self._toolbox_window.activateWindow()
+        logger.info("打开工具箱")
+
+    def _on_toolbox_window_destroyed(self, window) -> None:
+        if self._toolbox_window is window or not _qt_alive(self._toolbox_window):
+            self._toolbox_window = None
 
     def open_about(self):
         if self._about_window is None or not _qt_alive(self._about_window):

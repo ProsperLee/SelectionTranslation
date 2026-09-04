@@ -478,15 +478,16 @@ class MarkCheckBox(QPushButton):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = self.rect().adjusted(0, 0, -1, -1)
+        # 勾选时仍保留描边，避免框线消失
         if self._checked:
-            painter.setPen(QPen(Qt.PenStyle.NoPen))
+            painter.setPen(QPen(QColor("#0666cc"), 1))
             painter.setBrush(QBrush(QColor("#088fff")))
             painter.drawRoundedRect(rect, BORDER_RADIUS, BORDER_RADIUS)
             painter.setPen(QPen(QColor("#ffffff"), 2))
             painter.drawLine(4, 8, 6, 11)
             painter.drawLine(6, 11, 12, 4)
         else:
-            painter.setPen(QPen(QColor("#666666")))
+            painter.setPen(QPen(QColor("#666666"), 1))
             painter.setBrush(QBrush(QColor("#292929")))
             painter.drawRoundedRect(rect, BORDER_RADIUS, BORDER_RADIUS)
 

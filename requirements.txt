@@ -4,3 +4,4 @@ numpy>=1.24.0
 translators==6.0.4
 uiautomation>=2.0.18
 pyperclip>=1.8.2
+qrcode[pil]>=7.4.0

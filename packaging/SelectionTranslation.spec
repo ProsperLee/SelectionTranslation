@@ -61,6 +61,8 @@ hiddenimports = [
     "onnxruntime",
     "PIL",
     "PIL.Image",
+    "qrcode",
+    "qrcode.image.pil",
     "win_subprocess",
     "tts",
     "color_picker",
