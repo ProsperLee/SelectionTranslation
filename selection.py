@@ -152,6 +152,19 @@ def peek_selection(
     text, anchor = get_uia_selection(cursor_x, cursor_y)
     if text.strip():
         return text, anchor
+
+    # 划词按钮：光标坐标下仅对经典编辑框做 edit/WM_COPY 兜底。
+    # 浏览器整页 HWND 若也兜底，拖地图/点空白会抄到页内残留选区。
+    if cursor_x is not None and cursor_y is not None:
+        hwnd_at = _hwnd_from_point(cursor_x, cursor_y)
+        if not _hwnd_looks_classic_edit(hwnd_at):
+            return "", None
+        text = _get_text_via_edit_api(prefer_hwnd=hwnd_at)
+        if text:
+            return text, None
+        text = _get_text_via_wm_copy(prefer_hwnd=hwnd_at)
+        return (text or "").strip(), None
+
     text = _get_text_via_edit_api(prefer_hwnd=foreground_hwnd())
     if text:
         return text, None
@@ -229,6 +242,61 @@ def _is_placeholder_uia_text(text: str) -> bool:
     )
 
 
+# 划词按钮：选区包围盒需靠近松手点，避免地图拖拽等读到远处残留选区
+_SELECTION_NEAR_CURSOR_MARGIN_PX = 120
+
+
+def _iter_selection_boxes(rects) -> list[tuple[int, int, int, int]]:
+    """将 UIA GetBoundingRectangles 结果拆成 (left, top, right, bottom) 列表。"""
+    if not rects:
+        return []
+    try:
+        items = list(rects)
+    except Exception:
+        return []
+    if not items:
+        return []
+
+    boxes: list[tuple[int, int, int, int]] = []
+    if all(isinstance(v, (int, float)) for v in items):
+        n = len(items) - (len(items) % 4)
+        for i in range(0, n, 4):
+            left, top, width, height = (float(items[i + j]) for j in range(4))
+            boxes.append(
+                (int(left), int(top), int(left + width), int(top + height))
+            )
+        return boxes
+
+    for item in items:
+        box = _normalize_last_rect([item])
+        if box is not None:
+            boxes.append(box)
+    return boxes
+
+
+def _cursor_near_selection_rects(
+    cursor_x: int | None,
+    cursor_y: int | None,
+    rects,
+    *,
+    margin: int = _SELECTION_NEAR_CURSOR_MARGIN_PX,
+) -> bool:
+    """光标是否落在选区包围盒附近。无有效包围盒时不做否决（交给其它策略）。"""
+    if cursor_x is None or cursor_y is None:
+        return True
+    boxes = _iter_selection_boxes(rects)
+    if not boxes:
+        return True
+    x, y = int(cursor_x), int(cursor_y)
+    m = max(0, int(margin))
+    for left, top, right, bottom in boxes:
+        if right <= left and bottom <= top:
+            continue
+        if (left - m) <= x <= (right + m) and (top - m) <= y <= (bottom + m):
+            return True
+    return False
+
+
 def _starting_controls(
     cursor_x: int | None,
     cursor_y: int | None,
@@ -250,7 +318,11 @@ def _starting_controls(
     return starts
 
 
-def _try_text_pattern_on_control(control) -> tuple[str, tuple[int, int] | None]:
+def _try_text_pattern_on_control(
+    control,
+    cursor_x: int | None = None,
+    cursor_y: int | None = None,
+) -> tuple[str, tuple[int, int] | None]:
     try:
         text_pattern = control.GetTextPattern()
         if text_pattern is None:
@@ -260,12 +332,15 @@ def _try_text_pattern_on_control(control) -> tuple[str, tuple[int, int] | None]:
             return "", None
         chunks: list[str] = []
         anchor: tuple[int, int] | None = None
+        all_rects = []
         for item in selection:
             part = (item.GetText(-1) or "").replace("\ufffc", "")
             if part:
                 chunks.append(part)
             try:
                 rects = item.GetBoundingRectangles()
+                if rects:
+                    all_rects.append(rects)
                 point = _selection_anchor_from_rects(rects)
                 if point is not None:
                     anchor = point
@@ -274,37 +349,57 @@ def _try_text_pattern_on_control(control) -> tuple[str, tuple[int, int] | None]:
         text = "".join(chunks).strip()
         if not text or _is_placeholder_uia_text(text):
             return "", None
+        # 有包围盒却远离松手点 → 视为残留选区，不是本次划词
+        if all_rects and not any(
+            _cursor_near_selection_rects(cursor_x, cursor_y, rects)
+            for rects in all_rects
+        ):
+            return "", None
         return text, anchor
     except Exception:
         return "", None
 
 
-def _try_legacy_iaccessible_on_control(control) -> str:
+def _try_legacy_iaccessible_on_control(
+    control,
+    cursor_x: int | None = None,
+    cursor_y: int | None = None,
+) -> str:
+    """仅取 Legacy 选中子项；不把整控件 Value 当选区（易在地图/画布误触发）。"""
     try:
         lip = control.GetLegacyIAccessiblePattern()
         if lip is None:
             return ""
         for child in lip.GetSelection() or []:
-            text, _anchor = _try_text_pattern_on_control(child)
+            text, _anchor = _try_text_pattern_on_control(child, cursor_x, cursor_y)
             if text:
                 return text
-        value = (lip.Value or "").strip()
-        if value and not _is_placeholder_uia_text(value):
-            return value
+            # 选中子节点自身 Name 偶发有用；整控件 Value 一律不用（易误触发）
+            try:
+                name = (getattr(child, "Name", None) or "").strip()
+            except Exception:
+                name = ""
+            if name and not _is_placeholder_uia_text(name) and len(name) <= 500:
+                return name
     except Exception:
         pass
     return ""
 
 
-def _walk_up_try_selection(start, max_depth: int = 10) -> tuple[str, tuple[int, int] | None]:
+def _walk_up_try_selection(
+    start,
+    max_depth: int = 10,
+    cursor_x: int | None = None,
+    cursor_y: int | None = None,
+) -> tuple[str, tuple[int, int] | None]:
     cur = start
     for _ in range(max_depth):
         if cur is None:
             break
-        text, anchor = _try_text_pattern_on_control(cur)
+        text, anchor = _try_text_pattern_on_control(cur, cursor_x, cursor_y)
         if text:
             return text, anchor
-        text = _try_legacy_iaccessible_on_control(cur)
+        text = _try_legacy_iaccessible_on_control(cur, cursor_x, cursor_y)
         if text:
             return text, None
         try:
@@ -349,13 +444,19 @@ def _get_uia_selection_impl(
     cursor_y: int | None,
 ) -> tuple[str, tuple[int, int] | None]:
     for start in _starting_controls(cursor_x, cursor_y):
-        text, anchor = _walk_up_try_selection(start)
+        text, anchor = _walk_up_try_selection(
+            start, cursor_x=cursor_x, cursor_y=cursor_y
+        )
         if text:
             return text, anchor
 
+    # 仅在未提供光标（快捷键）或点选落在编辑器附近时扫 Monaco，
+    # 避免地图空白处拖拽读到同窗口其它编辑器的残留选区
     editor = _find_monaco_editor(foreground_hwnd())
     if editor is not None:
-        text, anchor = _walk_up_try_selection(editor)
+        text, anchor = _walk_up_try_selection(
+            editor, cursor_x=cursor_x, cursor_y=cursor_y
+        )
         if text:
             return text, anchor
 
@@ -490,6 +591,43 @@ def _window_class(hwnd: int) -> str:
         return buf.value or ""
     except Exception:
         return ""
+
+
+def _hwnd_from_point(x: int, y: int) -> int | None:
+    if user32 is None:
+        return None
+    try:
+        hwnd = int(user32.WindowFromPoint(wintypes.POINT(int(x), int(y))) or 0)
+        return hwnd or None
+    except Exception:
+        return None
+
+
+def _hwnd_looks_classic_edit(hwnd: int | None) -> bool:
+    """仅经典原生编辑框（不含浏览器整页 HWND，避免地图/空白误用 WM_COPY）。"""
+    if not hwnd or user32 is None:
+        return False
+    keys = (
+        "edit",
+        "richedit",
+        "scintilla",
+        "notepad",
+        "consolewindowclass",
+    )
+    seen: set[int] = set()
+    cur = int(hwnd)
+    for _ in range(4):
+        if not cur or cur in seen:
+            break
+        seen.add(cur)
+        cls = _window_class(cur).lower()
+        if cls and any(k in cls for k in keys):
+            return True
+        try:
+            cur = int(user32.GetParent(cur) or 0)
+        except Exception:
+            break
+    return False
 
 
 def _get_edit_selection(hwnd: int | None) -> str:
