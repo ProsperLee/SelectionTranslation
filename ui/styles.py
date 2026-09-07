@@ -118,7 +118,7 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
 """
 
 def note_scrollbar_qss(*, dark_bg: bool) -> str:
-    """便签滚动条：浅底用深色滑块，深底用浅色滑块。"""
+    """ä¾¿ç­¾æ»å¨æ¡ï¼æµåºç¨æ·±è²æ»åï¼æ·±åºç¨æµè²æ»åã"""
     handle = "rgba(255, 255, 255, 70)" if dark_bg else "rgba(0, 0, 0, 55)"
     handle_hover = "rgba(255, 255, 255, 120)" if dark_bg else "rgba(0, 0, 0, 90)"
     return f"""
@@ -186,7 +186,7 @@ QPlainTextEdit QWidget {{
 """
 
 
-# 默认浅色便签样式（兼容旧引用）
+# é»è®¤æµè²ä¾¿ç­¾æ ·å¼ï¼å¼å®¹æ§å¼ç¨ï¼
 NOTE_SCROLLBAR_QSS = note_scrollbar_qss(dark_bg=False)
 NOTE_TEXT_EDIT_QSS = note_text_edit_qss(text_color="#333333")
 
@@ -264,3 +264,28 @@ QLineEdit {{
     font-size: {FONT_SIZE}px;
 }}
 """
+
+DARK_TOOLTIP_QSS = """
+QToolTip {
+    font-size: 12px;
+    font-family: "Microsoft YaHei UI";
+    padding: 4px 8px;
+    color: #e8e8e8;
+    background-color: #2d2d2d;
+    border: 1px solid #454545;
+    border-radius: 4px;
+}
+"""
+
+
+def ensure_dark_tooltip_style() -> None:
+    """QToolTip 是独立顶层窗，样式须挂在 QApplication 上。"""
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance()
+    if app is None:
+        return
+    sheet = app.styleSheet() or ""
+    if "QToolTip {" in sheet:
+        return
+    app.setStyleSheet(sheet + DARK_TOOLTIP_QSS)

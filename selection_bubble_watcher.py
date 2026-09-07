@@ -7,15 +7,15 @@ OCR / 快捷键翻译期间可通过 suppress_for / is_blocked 临时屏蔽。
 
 from __future__ import annotations
 
-import ctypes
 import sys
 import threading
 import time
-from ctypes import wintypes
-from PySide6.QtCore import QObject, QTimer, Signal
 from typing import Callable
 
+from PySide6.QtCore import QObject, QTimer, Signal
+
 from selection import peek_qt_text_selection, peek_selection as default_peek_selection
+from ui.screen_coords import cursor_physical_pos
 from ui.selection_bubble import SelectionBubble
 
 VK_LBUTTON = 0x01
@@ -27,17 +27,11 @@ PEEK_DELAY_S = 0.04
 AUTO_HIDE_MS = 5000
 
 if sys.platform == "win32":
+    import ctypes
+
     user32 = ctypes.windll.user32
 else:
     user32 = None
-
-
-def _cursor_pos() -> tuple[int, int]:
-    if user32 is None:
-        return 0, 0
-    pt = wintypes.POINT()
-    user32.GetCursorPos(ctypes.byref(pt))
-    return int(pt.x), int(pt.y)
 
 
 def _lbutton_down() -> bool:
@@ -54,7 +48,10 @@ class SelectionBubbleWatcher(QObject):
         self,
         parent=None,
         *,
-        peek_selection: Callable[[], tuple[str, tuple[int, int] | None]] | None = None,
+        peek_selection: Callable[
+            [int, int], tuple[str, tuple[int, int] | None]
+        ]
+        | None = None,
         is_blocked: Callable[[], bool] | None = None,
     ):
         super().__init__(parent)
@@ -87,7 +84,7 @@ class SelectionBubbleWatcher(QObject):
         self._enabled = enabled
         if enabled:
             self._was_down = _lbutton_down()
-            self._down_pos = _cursor_pos() if self._was_down else None
+            self._down_pos = cursor_physical_pos() if self._was_down else None
             self._poll_timer.start()
             return
         self._poll_timer.stop()
@@ -124,7 +121,7 @@ class SelectionBubbleWatcher(QObject):
             return
         try:
             down = _lbutton_down()
-            x, y = _cursor_pos()
+            x, y = cursor_physical_pos()
             if down and not self._was_down:
                 self._down_pos = (x, y)
                 if self._bubble.isVisible() and not self._bubble.contains_point(x, y):

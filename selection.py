@@ -182,7 +182,6 @@ def peek_qt_text_selection() -> tuple[str, tuple[int, int] | None]:
         from PySide6.QtGui import QTextCursor
         from PySide6.QtWidgets import QApplication, QPlainTextEdit, QTextEdit
 
-        from ui.constants import SELECTION_BUBBLE_SIZE
         from ui.screen_coords import qt_global_to_physical
     except Exception:
         return "", None
@@ -268,10 +267,32 @@ def _iter_selection_boxes(rects) -> list[tuple[int, int, int, int]]:
         return boxes
 
     for item in items:
-        box = _normalize_last_rect([item])
+        box = _box_from_rect_item(item)
         if box is not None:
             boxes.append(box)
     return boxes
+
+
+def _box_from_rect_item(item) -> tuple[int, int, int, int] | None:
+    try:
+        if isinstance(item, (tuple, list)) and len(item) >= 4:
+            left, top, a, b = (float(item[i]) for i in range(4))
+            # 可能是 l,t,w,h 或 l,t,r,b
+            if a >= left and b >= top and (a - left) > 2 and (b - top) > 2:
+                return int(left), int(top), int(a), int(b)
+            return int(left), int(top), int(left + a), int(top + b)
+
+        left = int(getattr(item, "left", 0) or 0)
+        top = int(getattr(item, "top", 0) or 0)
+        right = int(getattr(item, "right", 0) or 0)
+        bottom = int(getattr(item, "bottom", 0) or 0)
+        if right <= left and hasattr(item, "width"):
+            right = left + int(item.width())
+        if bottom <= top and hasattr(item, "height"):
+            bottom = top + int(item.height())
+        return left, top, right, bottom
+    except Exception:
+        return None
 
 
 def _cursor_near_selection_rects(
@@ -450,8 +471,7 @@ def _get_uia_selection_impl(
         if text:
             return text, anchor
 
-    # 仅在未提供光标（快捷键）或点选落在编辑器附近时扫 Monaco，
-    # 避免地图空白处拖拽读到同窗口其它编辑器的残留选区
+    # Monaco：TextPattern 内已做近光标校验，远离松手点的残留选区会被丢掉
     editor = _find_monaco_editor(foreground_hwnd())
     if editor is not None:
         text, anchor = _walk_up_try_selection(
@@ -484,48 +504,9 @@ def _selection_anchor_from_rects(rects) -> tuple[int, int] | None:
 
 
 def _normalize_last_rect(rects) -> tuple[int, int, int, int] | None:
-    """统一解析 UIA 包围盒为 (left, top, right, bottom)。"""
-    if not rects:
-        return None
-    try:
-        items = list(rects)
-    except Exception:
-        return None
-    if not items:
-        return None
-
-    # 常见：平铺 float [l, t, w, h, ...]
-    if all(isinstance(v, (int, float)) for v in items):
-        if len(items) < 4:
-            return None
-        # 取最后一组
-        n = len(items) - (len(items) % 4)
-        if n < 4:
-            return None
-        left, top, width, height = (float(items[n - 4 + i]) for i in range(4))
-        return int(left), int(top), int(left + width), int(top + height)
-
-    last = items[-1]
-    try:
-        if isinstance(last, (tuple, list)) and len(last) >= 4:
-            left, top, a, b = (float(last[i]) for i in range(4))
-            # 可能是 l,t,w,h 或 l,t,r,b
-            if a >= left and b >= top and (a - left) > 2 and (b - top) > 2:
-                # 更像 right/bottom
-                return int(left), int(top), int(a), int(b)
-            return int(left), int(top), int(left + a), int(top + b)
-
-        left = int(getattr(last, "left", 0) or 0)
-        top = int(getattr(last, "top", 0) or 0)
-        right = int(getattr(last, "right", 0) or 0)
-        bottom = int(getattr(last, "bottom", 0) or 0)
-        if right <= left and hasattr(last, "width"):
-            right = left + int(last.width())
-        if bottom <= top and hasattr(last, "height"):
-            bottom = top + int(last.height())
-        return left, top, right, bottom
-    except Exception:
-        return None
+    """统一解析 UIA 包围盒为最后一个 (left, top, right, bottom)。"""
+    boxes = _iter_selection_boxes(rects)
+    return boxes[-1] if boxes else None
 
 
 def _key_down(vk: int) -> bool:

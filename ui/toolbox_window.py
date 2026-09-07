@@ -7,7 +7,6 @@ import logging
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QApplication,
     QHBoxLayout,
     QLabel,
     QSizePolicy,
@@ -19,6 +18,7 @@ from PySide6.QtWidgets import (
 from ui.base_window import FramelessWindow
 from ui.constants import FONT_SIZE, HEADER_BTN_SIZE, ICON_SIZE, WIDGET_MARGIN_H
 from ui.icons import IconButton, load_pixmap
+from ui.styles import ensure_dark_tooltip_style
 from ui.toolbox_img_base64 import ImgBase64Page
 from ui.toolbox_qrcode import QrcodePage
 from ui.toolbox_regex import RegexPage
@@ -26,18 +26,6 @@ from ui.toolbox_widgets import EDGE_SCROLLBAR_QSS, SideMenuButton
 from ui.text_utils import disable_label_selection
 
 logger = logging.getLogger("toolbox")
-
-_TOOLTIP_QSS = """
-QToolTip {
-    font-size: 12px;
-    font-family: "Microsoft YaHei UI";
-    padding: 4px 8px;
-    color: #e8e8e8;
-    background-color: #2d2d2d;
-    border: 1px solid #454545;
-    border-radius: 4px;
-}
-"""
 
 _TOOLS = (
     ("img-base64", "image.svg", "图片-Base64"),
@@ -58,9 +46,7 @@ class ToolboxWindow(FramelessWindow):
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.setAttribute(Qt.WidgetAttribute.WA_AlwaysShowToolTips, True)
         self.setWindowTitle("工具箱")
-        app = QApplication.instance()
-        if app is not None and "QToolTip {" not in (app.styleSheet() or ""):
-            app.setStyleSheet((app.styleSheet() or "") + _TOOLTIP_QSS)
+        ensure_dark_tooltip_style()
         self.setFixedSize(_FIXED_W, _FIXED_H)
         self._menu_btns: list[SideMenuButton] = []
         self._build_ui()

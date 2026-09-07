@@ -8,17 +8,13 @@ import json
 import logging
 import mimetypes
 import socket
-import sys
 import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, QUrl, Slot
-from PySide6.QtWebChannel import QWebChannel
-from PySide6.QtWebEngineCore import QWebEngineScript, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
-    QApplication,
     QHBoxLayout,
     QLabel,
     QSizePolicy,
@@ -30,21 +26,16 @@ from ui.base_window import FramelessWindow
 from ui.constants import FONT_SIZE, HEADER_BTN_SIZE, ICON_SIZE, WIDGET_MARGIN_H
 from ui.icons import IconButton
 from ui.paths import choose_open_file, choose_save_file
+from ui.styles import ensure_dark_tooltip_style
 from ui.text_utils import disable_label_selection
+from ui.web_host import (
+    configure_local_webengine,
+    setup_host_bridge,
+    toggle_workarea_fullscreen,
+    web_dir,
+)
 
 logger = logging.getLogger("drawnix")
-
-_TOOLTIP_QSS = """
-QToolTip {
-    font-size: 12px;
-    font-family: "Microsoft YaHei UI";
-    padding: 4px 8px;
-    color: #e8e8e8;
-    background-color: #2d2d2d;
-    border: 1px solid #454545;
-    border-radius: 4px;
-}
-"""
 
 
 _BRIDGE_JS = """
@@ -93,13 +84,7 @@ class _DrawnixBridge(QObject):
 
 def drawnix_dir() -> Path:
     """开发态为仓库 web/drawnix/；打包后为 _MEIPASS/web/drawnix。"""
-    rel = Path("web") / "drawnix"
-    if getattr(sys, "frozen", False):
-        meipass = getattr(sys, "_MEIPASS", None)
-        if meipass:
-            return Path(meipass) / rel
-        return Path(sys.executable).resolve().parent / rel
-    return Path(__file__).resolve().parent.parent / rel
+    return web_dir("drawnix")
 
 
 def drawnix_index_path() -> Path:
@@ -205,9 +190,7 @@ class DrawnixWindow(FramelessWindow):
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.setAttribute(Qt.WidgetAttribute.WA_AlwaysShowToolTips, True)
         self.setWindowTitle("思维导图")
-        app = QApplication.instance()
-        if app is not None and "QToolTip {" not in (app.styleSheet() or ""):
-            app.setStyleSheet((app.styleSheet() or "") + _TOOLTIP_QSS)
+        ensure_dark_tooltip_style()
         self.setMinimumSize(860, 520)
         self.resize(1100, 700)
         self._restore_geometry = None
@@ -277,16 +260,7 @@ class DrawnixWindow(FramelessWindow):
         self.set_header_layout(header)
 
         self.web = QWebEngineView()
-        settings = self.web.settings()
-        settings.setAttribute(
-            QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True
-        )
-        settings.setAttribute(
-            QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True
-        )
-        settings.setAttribute(
-            QWebEngineSettings.WebAttribute.JavascriptEnabled, True
-        )
+        configure_local_webengine(self.web)
         self._setup_web_bridge()
 
         wrap = QWidget()
@@ -302,33 +276,13 @@ class DrawnixWindow(FramelessWindow):
         self.web.loadFinished.connect(self._on_load_finished)
 
     def _setup_web_bridge(self) -> None:
-        page = self.web.page()
         self._bridge = _DrawnixBridge(self)
-        channel = QWebChannel(page)
-        channel.registerObject("host", self._bridge)
-        page.setWebChannel(channel)
-
-        scripts = page.scripts()
-        for name in ("qwebchannel", "drawnix-bridge"):
-            existing = scripts.find(name)
-            for script in list(existing):
-                scripts.remove(script)
-
-        qc = QWebEngineScript()
-        qc.setName("qwebchannel")
-        qc.setSourceUrl(QUrl("qrc:/qtwebchannel/qwebchannel.js"))
-        qc.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
-        qc.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
-        qc.setRunsOnSubFrames(False)
-        scripts.insert(qc)
-
-        bridge = QWebEngineScript()
-        bridge.setName("drawnix-bridge")
-        bridge.setSourceCode(_BRIDGE_JS)
-        bridge.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
-        bridge.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
-        bridge.setRunsOnSubFrames(False)
-        scripts.insert(bridge)
+        setup_host_bridge(
+            self.web.page(),
+            self._bridge,
+            script_name="drawnix-bridge",
+            bridge_js=_BRIDGE_JS,
+        )
 
     def _save_blob(self, data_url: str, filename: str, mime_type: str) -> None:
         try:
@@ -446,27 +400,12 @@ class DrawnixWindow(FramelessWindow):
         self.web.setUrl(url)
 
     def _toggle_fullscreen(self) -> None:
-        """铺满当前屏工作区（availableGeometry），不遮挡系统任务栏。"""
-        if self._workarea_maximized or self.isFullScreen():
-            if self.isFullScreen():
-                self.showNormal()
-            self._workarea_maximized = False
-            if self._restore_geometry is not None:
-                self.setGeometry(self._restore_geometry)
-                self._restore_geometry = None
-            self.fullscreen_btn.set_icon_name("restore.svg")
-            self.fullscreen_btn.setToolTip("全屏")
-            return
-
-        self._restore_geometry = self.geometry()
-        screen = self.screen()
-        if screen is not None:
-            self.setGeometry(screen.availableGeometry())
-        else:
-            self.showMaximized()
-        self._workarea_maximized = True
-        self.fullscreen_btn.set_icon_name("maximize.svg")
-        self.fullscreen_btn.setToolTip("退出全屏")
+        self._workarea_maximized, self._restore_geometry = toggle_workarea_fullscreen(
+            self,
+            maximized=self._workarea_maximized,
+            restore_geometry=self._restore_geometry,
+            fullscreen_btn=self.fullscreen_btn,
+        )
 
     def _header_drag_area(self) -> bool:
         return True
